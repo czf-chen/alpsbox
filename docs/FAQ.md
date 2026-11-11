@@ -59,6 +59,15 @@ previously processed without TOPUP is handled automatically: the stale
 single-PE result is detected and reprocessed with TOPUP (no need to delete the
 old result by hand).
 
+**Why is the Start button disabled / why must I "Check inputs" first?**
+The input check is a required, highlighted step. It only matches files and runs
+no image processing, but it catches missing/mismatched inputs, TOPUP subject
+layout errors (e.g. one subject's AP/PA split into two subject folders) and
+inconsistent AP/PA pairs before any processing. Start is enabled only after the
+check passes; changing the input folder, mode or TOPUP settings invalidates the
+check. The process page shows a coloured status bar (unchecked / checking /
+passed / warnings / failed).
+
 **How must a TOPUP batch be organized?**
 One immediate subfolder of the cohort root = one subject, and one subject gets
 one result folder. Put both PE series inside that subject folder (e.g. `AP/` and

@@ -107,6 +107,12 @@ class App(tk.Tk):
         self._active = None
         self._closing = False
         self._run_mode = "single"
+        self._preflight_state = "unchecked"   # unchecked/checking/ok/warn/failed
+        self._preflight_msg = ""
+        self._preflight_sig = None
+        self._preflight_busy = False
+        self._preflight_dirty = False
+        self._preflight_counts = (0, 0)
         self._qc_filter = "all"
         self._qc_reports = []
         self._last_out = ""
@@ -142,7 +148,10 @@ class App(tk.Tk):
     def _snapshot_ui_state(self) -> dict:
         """Capture log text, progress and input-variable state before a rebuild."""
         st = {"log": "", "vars": {}, "page": self._active or "home",
-              "adv_open": False}
+              "adv_open": False,
+              "preflight": (self._preflight_state, self._preflight_msg,
+                            self._preflight_sig, self._preflight_counts,
+                            self._preflight_busy)}
         if hasattr(self, "txt"):
             try:
                 st["log"] = self.txt.get("1.0", "end-1c")
@@ -239,6 +248,14 @@ class App(tk.Tk):
                 fn()
             except Exception:
                 pass
+        pf = st.get("preflight")
+        if pf:
+            (self._preflight_state, self._preflight_msg, self._preflight_sig,
+             self._preflight_counts, self._preflight_busy) = pf
+        try:
+            self._update_preflight_ui()
+        except Exception:
+            pass
         if st.get("adv_open"):
             try:
                 self._toggle_advanced()
@@ -256,6 +273,7 @@ class App(tk.Tk):
         for attr in ("badge", "lbl_session", "lbl_count", "txt", "tree",
                      "qc_tree", "lbl_th", "lbl_total", "lbl_elapsed",
                      "pb_total", "pb_cur", "lbl_cur", "lbl_summary",
+                     "btn_pre", "lbl_preflight_state",
                      "lbl_in", "lbl_qc_top", "roi_viewer", "_qc_panels",
                      "_adv_hdr", "_adv_body", "_adv_open", "spn_betf",
                      "cmb_cost", "ent_tpl", "btn_tpl", "var_bet_f",
@@ -836,25 +854,29 @@ class App(tk.Tk):
                  fg=P.TEXT_FAINT, font=self.F["small"], anchor="w",
                  justify="left", wraplength=960).pack(fill="x", pady=(10, 2))
 
-        # --- actions ---
+        # --- actions: Check inputs is a required, highlighted first step ---
         act = tk.Frame(page, bg=P.BG)
-        act.pack(fill="x", pady=(2, 12))
-        self.btn_go = RoundButton(act, t("proc.start"), command=self._start,
+        act.pack(fill="x", pady=(2, 8))
+        self.btn_pre = RoundButton(
+            act, t("proc.preflight_step"), command=self._preflight_only,
+            variant="accent", height=38, padx=22,
+            font=(self.F["base"][0], 10, "bold"))
+        self.btn_pre.pack(side="left", padx=(0, 10))
+        HelpDot(act, HELP["preflight"], bg=P.BG,
+                title=t("proc.preflight")).pack(side="left", padx=(4, 18))
+
+        self.btn_go = RoundButton(act, t("proc.start_step"), command=self._start,
                                   variant="accent", height=38, padx=26,
                                   font=(self.F["base"][0], 10, "bold"))
         self.btn_go.pack(side="left")
-        HelpDot(act, HELP["go"], bg=P.BG, title=t("proc.start")).pack(side="left", padx=(8, 20))
+        HelpDot(act, HELP["go"], bg=P.BG,
+                title=t("proc.start")).pack(side="left", padx=(8, 18))
+        self.btn_go.set_enabled(False)
 
         self.btn_stop = RoundButton(act, t("proc.stop"), command=self._stop,
                                     variant="danger", height=38, padx=20)
         self.btn_stop.pack(side="left")
         self.btn_stop.set_enabled(False)
-
-        pb = RoundButton(act, t("proc.preflight"), command=self._preflight_only,
-                         variant="light", height=38, padx=20)
-        pb.pack(side="left", padx=10)
-        HelpDot(act, HELP["preflight"], bg=P.BG, title=t("proc.preflight")).pack(
-            side="left", padx=(4, 0))
 
         # Processing pipeline overview: each step together with its methodological citation
         tk.Frame(act, bg=P.BG, width=14).pack(side="left")
@@ -866,6 +888,24 @@ class App(tk.Tk):
 
         RoundButton(act, t("proc.clearlog"), command=self._clear_log, variant="ghost",
                     height=38, padx=16).pack(side="right")
+
+        # --- preflight status banner (mandatory check) ---
+        stbar = tk.Frame(page, bg=P.WARN_LIGHT)
+        stbar.pack(fill="x", pady=(0, 10))
+        self.lbl_preflight_state = tk.Label(
+            stbar, text="", bg=P.WARN_LIGHT, fg=P.WARN,
+            font=self.F["small"], anchor="w", justify="left",
+            wraplength=980, padx=10, pady=6)
+        self.lbl_preflight_state.pack(fill="x")
+
+        # Changing the input or TOPUP settings invalidates the check.
+        for _v in (self.var_in, self.var_topup, self.var_topup_mode,
+                   self.var_topup_second, self.var_topup_config):
+            try:
+                _v.trace_add("write", self._on_preflight_input_changed)
+            except Exception:
+                pass
+        self._update_preflight_ui()
 
         # --- summary ---
         box3 = self._card(page, t("proc.summary"), pady=(0, 6))
@@ -1952,6 +1992,7 @@ class App(tk.Tk):
         self.var_in.set("")
         self._update_summary()
         try:
+            self._invalidate_preflight()
             self._update_topup_ui()
         except Exception:
             pass
@@ -2159,6 +2200,8 @@ class App(tk.Tk):
                     self._set_progress(*payload)
                 elif tag == "step":
                     self._set_step(*payload)
+                elif tag == "preflight":
+                    self._on_preflight_result(payload)
                 elif tag == "record":
                     self._on_record(payload)
                 elif tag == "env":
@@ -2372,22 +2415,147 @@ class App(tk.Tk):
             messagebox.showinfo(t("msg.exported"), p)
 
     # =================================================================
+    # mandatory input preflight (gates Start)
+    # =================================================================
+    def _preflight_signature(self):
+        """Settings that the successful input check is valid for."""
+        return (
+            self.mode.get(),
+            os.path.abspath(self.var_in.get().strip())
+            if self.var_in.get().strip() else "",
+            bool(self.var_topup.get()),
+            str(self.var_topup_mode.get()),
+            str(self.var_topup_second.get().strip()),
+            str(self.var_topup_config.get().strip()),
+        )
+
+    def _on_preflight_input_changed(self, *_a):
+        self._invalidate_preflight()
+
+    def _invalidate_preflight(self):
+        if self._preflight_busy:
+            self._preflight_dirty = True
+            return
+        if self._preflight_state == "unchecked":
+            return
+        self._preflight_state = "unchecked"
+        self._preflight_msg = ""
+        self._preflight_sig = None
+        self._update_preflight_ui()
+
+    def _update_preflight_ui(self):
+        if not hasattr(self, "btn_pre") or not hasattr(self, "lbl_preflight_state"):
+            return
+        st = self._preflight_state
+        n_ok, n_bad = getattr(self, "_preflight_counts", (0, 0))
+        running = bool(self.worker and self.worker.is_alive())
+        if st == "checking":
+            self.btn_pre.set_text(t("proc.preflight_checking"))
+            self.btn_pre.set_enabled(False)
+            self.lbl_preflight_state.configure(
+                text=t("proc.preflight_banner_checking"),
+                bg=P.ACCENT_LIGHT, fg=P.ACCENT)
+        elif st == "ok":
+            self.btn_pre.set_text(t("proc.preflight_step_done"))
+            self.btn_pre.set_enabled(True)
+            self.lbl_preflight_state.configure(
+                text=t("proc.preflight_banner_ok", n_ok),
+                bg=P.OK_LIGHT, fg=P.OK)
+        elif st == "warn":
+            self.btn_pre.set_text(t("proc.preflight_step_done"))
+            self.btn_pre.set_enabled(True)
+            self.lbl_preflight_state.configure(
+                text=t("proc.preflight_banner_warn", n_ok, n_bad),
+                bg=P.WARN_LIGHT, fg=P.WARN)
+        elif st == "failed":
+            self.btn_pre.set_text(t("proc.preflight_step"))
+            self.btn_pre.set_enabled(True)
+            self.lbl_preflight_state.configure(
+                text=t("proc.preflight_banner_failed",
+                       self._preflight_msg or t("proc.failed")),
+                bg=P.ERR_LIGHT, fg=P.ERR)
+        else:  # unchecked / stale
+            self.btn_pre.set_text(t("proc.preflight_step"))
+            self.btn_pre.set_enabled(True)
+            msg = (t("proc.preflight_banner_stale")
+                   if self._preflight_msg else
+                   t("proc.preflight_banner_unchecked"))
+            self.lbl_preflight_state.configure(text=msg,
+                                               bg=P.WARN_LIGHT, fg=P.WARN)
+        ready = (st in ("ok", "warn") and not running
+                 and self._preflight_sig == self._preflight_signature())
+        self.btn_go.set_enabled(ready)
+
+    def _on_preflight_result(self, payload):
+        self._preflight_busy = False
+        dirty = self._preflight_dirty
+        self._preflight_dirty = False
+        if dirty or payload.get("sig") != self._preflight_signature():
+            self._preflight_state = "unchecked"
+            self._preflight_msg = t("proc.preflight_banner_stale")
+            self._preflight_sig = None
+            self._preflight_counts = (0, 0)
+        else:
+            self._preflight_state = payload.get("state", "failed")
+            self._preflight_msg = payload.get("msg", "")
+            self._preflight_counts = tuple(payload.get("counts", (0, 0)))
+        self._update_preflight_ui()
+        try:
+            if self._preflight_state == "ok":
+                log_line = t("proc.preflight_banner_ok",
+                             self._preflight_counts[0])
+            elif self._preflight_state == "warn":
+                log_line = t("proc.preflight_banner_warn",
+                             self._preflight_counts[0],
+                             self._preflight_counts[1])
+            elif self._preflight_state == "failed":
+                log_line = t("proc.preflight_banner_failed",
+                             self._preflight_msg or t("proc.failed"))
+            else:
+                log_line = t("proc.preflight_banner_stale")
+            self._log(log_line, "ok" if self._preflight_state == "ok"
+                      else ("err" if self._preflight_state == "failed"
+                            else "warn"))
+            # On success show the process page again (status banner + Start);
+            # on failure stay on the log so the reasons are visible.
+            if (self._preflight_state in ("ok", "warn")
+                    and self._active == "log"):
+                self._show_page("process")
+        except Exception:
+            pass
+
+    # =================================================================
     # preflight
     # =================================================================
     def _preflight_only(self):
         from .inputs import discover
+        if self._preflight_busy:
+            return
         indir = self.var_in.get().strip()
         if not indir or not os.path.isdir(indir):
             messagebox.showerror(t("msg.input_invalid"),
                                  t("msg.input_invalid_body"))
+            self._preflight_state = "failed"
+            self._preflight_msg = t("msg.input_invalid_body")
+            self._update_preflight_ui()
             return
         # Tk variables must be read on the main thread; the worker below only
-        # uses the resulting plain dict.
+        # uses plain values.
         try:
             topup = self._topup_settings()
         except ValueError as e:
             messagebox.showerror(t("msg.topup_invalid"), str(e))
+            self._preflight_state = "failed"
+            self._preflight_msg = str(e)
+            self._update_preflight_ui()
             return
+        sig = self._preflight_signature()
+        self._preflight_busy = True
+        self._preflight_dirty = False
+        self._preflight_state = "checking"
+        self._preflight_msg = ""
+        self._preflight_sig = sig
+        self._update_preflight_ui()
         self._show_page("log")
         self._log("")
         self._log("=" * 58)
@@ -2397,39 +2565,57 @@ class App(tk.Tk):
         out = self.var_out.get().strip() or os.path.join(indir, "alps_results")
 
         def work():
-            if mode == "batch":
-                jobs = collect_jobs(indir, out)
-                good, bad = preflight(
-                    jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
-                layout_errors = (topup_layout_errors(good, bad)
-                                 if topup else [])
-                if layout_errors:
-                    self.q.put(("log", t("batch.topup.layout_header")))
-                    for e in layout_errors:
-                        self.q.put(("log", "  - " + e))
-                self.q.put(("log", t("log.job_count", len(jobs))))
-                for j in bad:
-                    self.q.put(("log", t(
-                        "log.missing", j.subject,
-                        j.error.split("\n")[0][:80])))
-                for j in good:
-                    d = j.dwi
-                    ok_json = (t("log.yes") if (d and d.has_eddy_metadata)
-                               else t("log.no"))
-                    pe = d.json_info.get("PhaseEncodingDirection", "-") if d else "-"
-                    self.q.put(("log", t("log.runnable", j.subject,
-                                         ok_json, pe)))
-                    if topup and j.topup:
-                        self.q.put(("log", "    " + j.topup))
-                self.q.put(("log", t("log.preflight_sum", len(good),
-                                     len(bad))))
-            else:
-                try:
-                    d = discover(indir)
+            state, msg, counts = "ok", "", (0, 0)
+            try:
+                if mode == "batch":
+                    jobs = collect_jobs(indir, out)
+                    good, bad = preflight(
+                        jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
+                    layout_errors = (topup_layout_errors(good, bad)
+                                     if topup else [])
+                    if layout_errors:
+                        self.q.put(("log", t("batch.topup.layout_header")))
+                        for e in layout_errors:
+                            self.q.put(("log", "  - " + e))
+                    self.q.put(("log", t("log.job_count", len(jobs))))
+                    for j in bad:
+                        self.q.put(("log", t(
+                            "log.missing", j.subject,
+                            j.error.split("\n")[0][:80])))
+                    for j in good:
+                        d = j.dwi
+                        ok_json = (t("log.yes")
+                                   if (d and d.has_eddy_metadata) else t("log.no"))
+                        pe = (d.json_info.get("PhaseEncodingDirection", "-")
+                              if d else "-")
+                        self.q.put(("log", t("log.runnable", j.subject,
+                                             ok_json, pe)))
+                        if topup and j.topup:
+                            self.q.put(("log", "    " + j.topup))
+                    self.q.put(("log", t("log.preflight_sum", len(good),
+                                         len(bad))))
+                    counts = (len(good), len(bad))
+                    if layout_errors:
+                        state = "failed"
+                        msg = "; ".join(layout_errors)[:220]
+                    elif bad:
+                        state = "warn"
+                        msg = ""
+                else:
+                    try:
+                        d = discover(indir)
+                    except Exception as e:
+                        self.q.put(("log", t("log.missing_one", e)))
+                        self.q.put(("preflight", {
+                            "state": "failed", "msg": str(e),
+                            "counts": (0, 1), "sig": sig}))
+                        return
                     self.q.put(("log", t(
                         "log.found_dwi", os.path.basename(d.nii))))
+                    counts = (1, 0)
                     if topup:
-                        from .inputs import (attach_second_from_nii,
+                        from .inputs import (TopupPairError,
+                                            attach_second_from_nii,
                                             auto_attach_topup)
                         try:
                             if topup["mode"] == "manual":
@@ -2438,15 +2624,38 @@ class App(tk.Tk):
                             else:
                                 ok, why = auto_attach_topup(
                                     d, indir, search_siblings=True)
-                        except Exception as e:
-                            self.q.put(("log", t("msg.topup_second_invalid",
-                                                 e)))
+                        except TopupPairError as e:
                             ok, why = False, str(e)
-                        if not ok:
+                            state = "failed"
+                            msg = why[:220]
+                            self.q.put(("log", t(
+                                "msg.topup_second_invalid", e)))
+                        except Exception as e:
+                            ok, why = False, str(e)
+                            state = "failed"
+                            msg = str(e)[:220]
+                        if ok:
+                            self.q.put(("log", t(
+                                "misc.dwi.topup_on",
+                                d.pe_direction, d.pe_direction2)))
+                        else:
                             self.q.put(("log", t("misc.dwi.topup_off", why)))
+                            if state != "failed":
+                                state = "warn" if topup["mode"] == "auto" else "failed"
+                                if topup["mode"] == "manual":
+                                    msg = why[:220]
                     self.q.put(("log", d.describe()))
-                except Exception as e:
-                    self.q.put(("log", t("log.missing_one", e)))
+                # Environment must be usable as well.
+                if getattr(self, "env", None) is None:
+                    state, msg = "failed", t("proc.preflight_env_wait")
+                elif not self.env.ok:
+                    state, msg = "failed", t("proc.preflight_env_bad")
+                self.q.put(("preflight", {"state": state, "msg": msg,
+                                          "counts": counts, "sig": sig}))
+            except Exception as e:
+                self.q.put(("preflight", {
+                    "state": "failed", "msg": str(e)[:220],
+                    "counts": (0, 0), "sig": sig}))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -2455,6 +2664,12 @@ class App(tk.Tk):
     # =================================================================
     def _start(self):
         if self.worker and self.worker.is_alive():
+            return
+        if (self._preflight_state not in ("ok", "warn")
+                or self._preflight_sig != self._preflight_signature()):
+            messagebox.showwarning(t("msg.preflight_required"),
+                                  t("msg.preflight_required_body"))
+            self._show_page("process")
             return
         if self.env is None or not self.env.ok:
             messagebox.showerror(
@@ -2713,7 +2928,7 @@ class App(tk.Tk):
             sys.stdout = old
 
     def _on_done(self, results, outdir):
-        self.btn_go.set_enabled(True)
+        self._update_preflight_ui()
         self.btn_stop.set_enabled(False)
         ok = sum(1 for r in results if getattr(r, "ok", False))
         tot = len(results)

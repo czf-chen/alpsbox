@@ -110,11 +110,13 @@ STRINGS = {
         "zh_CN": "每个被试一个子目录，已完成的会自动跳过，可中断续跑。",
         "en": "One subfolder per subject; finished subjects are skipped, so "
               "runs can resume."},
-    "home.step3_title": {"zh_CN": "点开始", "en": "Press start"},
+    "home.step3_title": {"zh_CN": "先检查，再开始", "en": "Check, then start"},
     "home.step3_desc": {
-        "zh_CN": "全自动处理并给出 ALPS、8 类质控指标与可打印的 HTML 报告。",
-        "en": "Everything runs automatically and produces ALPS values, "
-              "QC across 8 categories and a printable HTML report."},
+        "zh_CN": "先点“① 先检查输入”（必做），通过后再点“② 开始处理”；"
+                 "全自动处理并给出 ALPS、8 类质控指标与可打印的 HTML 报告。",
+        "en": "Click “1. Check inputs” (required), then “2. Start processing”; "
+              "it runs automatically and produces ALPS values, QC across 8 "
+              "categories and a printable HTML report."},
     "home.privacy_title": {"zh_CN": "数据只在本机处理", "en": "Data stays on your machine"},
     "home.privacy": {
         "zh_CN": "不需要上传、不联网；FSL / MRtrix3 需自行安装（本工具不打包）。",
@@ -138,10 +140,11 @@ STRINGS = {
     "proc.rootdir": {"zh_CN": "队列根目录", "en": "Cohort root"},
     "proc.outdir": {"zh_CN": "输出目录", "en": "Output folder"},
     "proc.hint": {
-        "zh_CN": "建议先点下面的“先检查输入”，它只做文件匹配，不跑图像处理，"
-                 "几秒钟就能看出每个被试能不能找到 DWI。",
-        "en": "Tip: click “Check inputs” first. It only matches files, "
-              "runs no image processing, and takes seconds."},
+        "zh_CN": "必须先点下面的“① 先检查输入”，它只做文件匹配，不跑图像处理，"
+                 "几秒钟就能看出每个被试能不能找到 DWI；检查通过前「开始处理」不可用。",
+        "en": "You must click “1. Check inputs” first. It only matches files, "
+              "runs no image processing, and takes seconds; Start stays disabled "
+              "until the check passes."},
     "proc.params": {"zh_CN": "参数", "en": "Parameters"},
     "proc.threads": {"zh_CN": "线程数", "en": "Threads"},
     "proc.unring": {"zh_CN": "去 Gibbs 振铃", "en": "Gibbs unringing"},
@@ -326,6 +329,52 @@ STRINGS = {
     "proc.start": {"zh_CN": "开始处理", "en": "Start"},
     "proc.stop": {"zh_CN": "停止", "en": "Stop"},
     "proc.preflight": {"zh_CN": "先检查输入", "en": "Check inputs"},
+    "proc.start_step": {"zh_CN": "② 开始处理", "en": "2. Start processing"},
+    "proc.preflight_step": {"zh_CN": "① 先检查输入（必做）",
+                            "en": "1. Check inputs (required)"},
+    "proc.preflight_step_done": {
+        "zh_CN": "✓ 已检查输入（可重新检查）",
+        "en": "✓ Inputs checked (re-check)"},
+    "proc.preflight_checking": {"zh_CN": "检查中…", "en": "Checking…"},
+    "proc.preflight_banner_unchecked": {
+        "zh_CN": "⚠ 开始处理前必须先检查输入：它只匹配文件、不处理图像，"
+                 "能提前发现被试目录/TOPUP 组织错误。检查通过后「开始处理」才会启用。",
+        "en": "⚠ Check the inputs before starting: it only matches files, runs no "
+              "image processing, and catches subject-folder/TOPUP layout errors. "
+              "Start is enabled only after a successful check."},
+    "proc.preflight_banner_stale": {
+        "zh_CN": "⚠ 输入或 TOPUP 设置已改变，请重新检查输入。",
+        "en": "⚠ Inputs or TOPUP settings changed; check the inputs again."},
+    "proc.preflight_banner_checking": {
+        "zh_CN": "正在检查输入（只匹配文件，不处理图像）…",
+        "en": "Checking inputs (file matching only, no image processing)…"},
+    "proc.preflight_banner_ok": {
+        "zh_CN": "✓ 输入检查通过：%d 个被试可用。现在可以开始处理。",
+        "en": "✓ Inputs checked: %d subject(s) usable. You can start processing."},
+    "proc.preflight_banner_warn": {
+        "zh_CN": "! 输入检查完成：%d 个可用，%d 个有问题（有问题的会被跳过；详见日志）。"
+                 "可以开始处理。",
+        "en": "! Inputs checked: %d usable, %d with problems (those are skipped; "
+              "see the log). You can start processing."},
+    "proc.preflight_banner_failed": {
+        "zh_CN": "✗ 输入检查未通过：%s（详见日志）。请修正后重新检查。",
+        "en": "✗ Input check failed: %s (see the log). Fix it and check again."},
+    "proc.preflight_env_wait": {
+        "zh_CN": "环境检查尚未完成，请稍等后再检查输入",
+        "en": "the environment check has not finished yet; try again shortly"},
+    "proc.preflight_env_bad": {
+        "zh_CN": "环境不可用（例如未找到 FSL），请先处理环境问题",
+        "en": "the environment is not usable (e.g. FSL not found); fix it first"},
+    "msg.preflight_required": {"zh_CN": "请先检查输入",
+                               "en": "Check the inputs first"},
+    "msg.preflight_required_body": {
+        "zh_CN": "开始处理前必须先点击「① 先检查输入」并等待检查通过。"
+                 "这样可以提前发现被试目录/TOPUP 组织错误，避免白跑。若输入或 "
+                 "TOPUP 设置改变，需要重新检查。",
+        "en": "Before starting, click “1. Check inputs” and wait for it to pass. "
+              "This catches subject-folder/TOPUP layout errors early and avoids "
+              "wasted processing. Changing the input or TOPUP settings requires a "
+              "new check."},
     "proc.clearlog": {"zh_CN": "清空日志", "en": "Clear log"},
     "proc.summary": {"zh_CN": "本次任务摘要", "en": "Task summary"},
     "proc.summary_empty": {
@@ -339,8 +388,9 @@ STRINGS = {
     "proc.est": {"zh_CN": "，按每人 10 到 15 分钟估算，全批约需 %.0f 到 %.0f 分钟",
                  "en": " (est. %.0f–%.0f min at 10–15 min/subject)"},
     "proc.out_to": {"zh_CN": "输出到", "en": "Output to"},
-    "proc.next_hint": {"zh_CN": "接下来建议先点“先检查输入”确认都能找到 DWI。",
-                       "en": "Next: click “Check inputs” to confirm every DWI is found."},
+    "proc.next_hint": {"zh_CN": "接下来必须点“① 先检查输入”确认都能找到 DWI（检查通过前不能开始）。",
+                       "en": "Next: click “1. Check inputs” to confirm every DWI "
+                             "is found (Start stays disabled until it passes)."},
     "proc.subject_id": {"zh_CN": "被试编号取目录名", "en": "Subject ID from folder name"},
     "proc.est_time": {"zh_CN": "预计耗时 9 到 15 分钟，其中 eddy 占八成左右。",
                       "en": "Estimated 9–15 min, about 80% of it in eddy."},
@@ -701,8 +751,9 @@ STRINGS = {
     "proc.checking_input": {"zh_CN": "检查输入", "en": "Checking input"},
     "proc.completed": {"zh_CN": "完成", "en": "Done"},
     "proc.failed": {"zh_CN": "失败", "en": "Failed"},
-    "proc.next_hint_single": {"zh_CN": "接下来建议先点“先检查输入”确认能找到 DWI。",
-                  "en": "Next: click “Check inputs” to confirm the DWI is found."},
+    "proc.next_hint_single": {"zh_CN": "接下来必须点“① 先检查输入”确认能找到 DWI（检查通过前不能开始）。",
+                  "en": "Next: click “1. Check inputs” to confirm the DWI is "
+                        "found (Start stays disabled until it passes)."},
     "proc.pick_indir": {"zh_CN": "选择被试目录", "en": "Choose subject folder"},
     "proc.pick_out": {"zh_CN": "选择输出目录", "en": "Choose output folder"},
     "proc.pick_roi": {"zh_CN": "按顺序选 4 个 ROI：左上放射冠、右上放射冠、左上纵束、右上纵束",

@@ -35,8 +35,9 @@ _HELP = {
             "就是三个被试。\n\n"
             "每个子文件夹内部的要求和单个被试一样：一套同名的 DWI、.bval、.bvec，"
             "有 .json 更好。\n\n"
-            "开始之前建议先点“先检查输入”。这个操作只做文件匹配，不跑图像处理，"
-            "几秒钟就能把每个被试能不能找到 DWI 列出来，省得跑到一半才发现有的人缺文件。"
+            "开始之前必须先点“① 先检查输入”。这个操作只做文件匹配，不跑图像处理，"
+            "几秒钟就能把每个被试能不能找到 DWI、TOPUP 组织是否正确列出来；"
+            "检查通过前「开始处理」不可用，输入或 TOPUP 设置改变后需要重新检查。"
         ),
         "outdir": (
             "所有结果写在这个目录下。每个被试会有一个同名子文件夹，里面有 "
@@ -91,15 +92,21 @@ _HELP = {
             "顺序搞错会直接算出错误的 ALPS，建议确认后再用。"
         ),
         "go": (
+            "必须先通过“① 先检查输入”才能点击开始（检查通过前按钮不可用）。"
             "点下去会开一个后台线程逐个处理，界面不会卡住。"
             "底部有两条进度条，上面一条是整体进度，下面一条是当前被试走到第几步。\n\n"
             "处理过程中可以点停止，程序会在当前被试跑完之后才停，"
             "不会留下跑到一半的文件。"
         ),
         "preflight": (
-            "只做输入检查，不跑任何图像处理。程序会逐个被试确认能否找到 DWI、"
-            "bval 和 bvec 是否配套、json 里有没有做完整 eddy 所需的相位编码方向和读出时间。\n\n"
-            "跑处理之前先点一下，可以提前发现缺文件或不配套的问题。"
+            "这是开始处理前**必做**的一步（检查通过前「开始处理」按钮不可用）。"
+            "它只做输入检查，不跑任何图像处理：逐个被试确认能否找到 DWI、"
+            "bval 和 bvec 是否配套、json 里有没有做完整 eddy 所需的相位编码方向和读出时间；"
+            "开启 TOPUP 时还会检查 AP/PA 组织方式（批量中同一被试被拆成两个文件夹会被"
+            "阻止）、配对的一致性（bval/bvec、采集元数据、图像几何）以及环境是否可用。\n\n"
+            "检查完成后，处理页会显示通过/警告/失败的彩色状态条；输入目录、模式或 TOPUP "
+            "设置一旦改变，需要重新检查。批次预检记录会写到输出目录的 "
+            "preflight_report.txt。"
         ),
         "results": (
             "结果表会自动保存到 ~/.alpsbox/session.json，下次打开还在，不需要手动存。\n\n"
@@ -228,8 +235,9 @@ _HELP = {
             "If a subject also has a second DWI with the opposite phase-encoding "
             "direction (AP + PA), enable TOPUP under Advanced; each subject folder "
             "is then checked for a reversed series automatically.\n\n"
-            "Click “Check inputs” before starting. It only matches files, runs no "
-            "image processing, and reports within seconds which subjects are usable."
+            "Click “1. Check inputs” before starting; Start stays disabled until "
+            "it passes. It only matches files, runs no image processing, and reports "
+            "within seconds which subjects are usable."
         ),
         "outdir": (
             "All results go here. Each subject gets a subfolder of the same name "
@@ -294,6 +302,7 @@ _HELP = {
             "Getting the order wrong produces a wrong ALPS value, so double-check."
         ),
         "go": (
+            "A successful “1. Check inputs” is required before Start is enabled. "
             "Starts a background thread that processes subjects one by one, so the "
             "interface stays responsive. Two progress bars sit at the bottom: overall "
             "progress above, current step below.\n\n"
@@ -301,11 +310,19 @@ _HELP = {
             "half-written files are left behind."
         ),
         "preflight": (
-            "Checks inputs only and runs no image processing. For every subject it "
-            "reports whether the DWI is found, whether bval and bvec match, and "
-            "whether the JSON carries the phase-encoding direction and readout time "
-            "that full eddy needs.\n\n"
-            "Run it before processing to catch missing or mismatched files early."
+            "This is a **required** step before processing (the Start button stays "
+            "disabled until the check passes). It only checks inputs and runs no "
+            "image processing: for every subject it reports whether the DWI is "
+            "found, whether bval and bvec match, and whether the JSON carries the "
+            "phase-encoding direction and readout time that full eddy needs. With "
+            "TOPUP enabled it also checks the AP/PA organisation (in batch mode, "
+            "one subject split into two folders is blocked), pair consistency "
+            "(bval/bvec, acquisition metadata, image geometry) and environment "
+            "availability.\n\n"
+            "The process page shows a coloured status bar (passed / warnings / "
+            "failed); changing the input folder, mode or TOPUP settings requires a "
+            "new check. Batch preflight is recorded in preflight_report.txt in the "
+            "output folder."
         ),
         "results": (
             "The results table is saved automatically to ~/.alpsbox/session.json and "

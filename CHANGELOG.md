@@ -29,6 +29,12 @@ repository's history.
   `batch --topup-auto` (per-subject auto pairing) and `--topup-config` (use a
   TOPUP configuration other than FSL's automatically located b02b0.cnf).
   Passing `--dwi2` to batch is no longer silently ignored.
+- GUI safety: "Check inputs" is now a required, highlighted step. Start is
+  disabled until the current input/TOPUP settings pass preflight; changing the
+  input folder, mode or TOPUP settings invalidates the check and disables Start
+  again. The process page shows a coloured status banner (unchecked / checking /
+  passed / warnings / failed), so organisational errors are caught before any
+  processing starts.
 - Batch safety: before processing, batch preflight now blocks a layout where
   one subject's AP/PA series are organized as two separate subject folders
   (clear error + `preflight_report.txt` + GUI/CLI log), and checks every TOPUP

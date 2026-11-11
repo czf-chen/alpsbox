@@ -6,7 +6,7 @@ from . import citations as _C
 from . import i18n
 
 _ZH = {
-    "quickstart": """三步开始
+    "quickstart": """四步开始
 
 1. 选输入
    单个被试就选那个被试的文件夹；批量就选队列根目录，程序把每个子文件夹当成一个被试。
@@ -14,15 +14,15 @@ _ZH = {
 2. 选输出目录
    每个被试会在输出目录下有一个同名子文件夹。已经有结果的会自动跳过，可中断续跑。
 
-3. 点开始处理
-   底部有两条进度条，上面是整体进度，下面显示当前被试走到第几步。
-   处理中随时可以点停止，程序会在当前被试跑完后才停下，不会留下半截文件。
+3. 先检查输入（必做）
+   点“① 先检查输入”，它只做文件匹配、不碰图像，几秒钟就能把每个被试的情况列出来：
+   能不能找到 DWI、bval 和 bvec 配不配套、json 够不够做完整 eddy；开启 TOPUP 时
+   还会检查 AP/PA 的组织和配对一致性。检查通过前「开始处理」不可用；输入目录、
+   模式或 TOPUP 设置一旦改变，需要重新检查。
 
-建议先跑一次“先检查输入”
-
-这一步只做文件匹配，不碰图像，几秒钟就能把每个被试的情况列出来：
-能不能找到 DWI、bval 和 bvec 配不配套、json 够不够做完整 eddy。
-它能在开始处理前把缺文件、不配套的输入列出来。
+4. 点开始处理
+   检查通过后点“② 开始处理”。底部有两条进度条，上面是整体进度，下面显示当前被试
+   走到第几步。处理中随时可以点停止，程序会在当前被试跑完后才停下，不会留下半截文件。
 
 结果在哪里
 
@@ -315,7 +315,7 @@ ROI 定义
 
 
 _EN = {
-    "quickstart": """Three steps
+    "quickstart": """Four steps
 
 1. Choose the input
    For one subject pick that subject's folder. For a batch pick the cohort root;
@@ -325,16 +325,18 @@ _EN = {
    Each subject gets a subfolder of the same name. Completed subjects are skipped
    automatically so an interrupted run can resume.
 
-3. Click Start
+3. Check inputs (required)
+   Click “1. Check inputs”. It only matches files and never touches image data, so
+   within seconds it reports whether each subject has a DWI, whether bval and bvec
+   match and whether the JSON carries enough for full eddy. With TOPUP enabled it
+   also checks the AP/PA organisation and pair consistency. Start stays disabled
+   until the check passes; changing the input folder, mode or TOPUP settings
+   requires a new check.
+
+4. Click “2. Start processing”
    Two progress bars sit at the bottom: overall progress above, current step below.
    You can stop at any time; the current subject finishes first, so nothing is left
-   half-written.
-
-Run "Check inputs" first
-
-It only matches files and never touches image data, so within seconds it reports
-whether each subject has a DWI, whether bval and bvec match, and whether the JSON
-carries enough for full eddy. It lists missing or mismatched inputs before processing starts.
+   half-written. It lists missing or mismatched inputs before processing starts.
 
 Where the results are
 

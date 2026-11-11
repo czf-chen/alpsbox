@@ -119,8 +119,13 @@ first (see [Installation](#installation); platform-specific steps are in
 
 The home page opens in English (the default); choose 简体中文 there if you prefer
 Chinese for this session. Then pick the input folder (one subject, or a cohort
-root where each subfolder is one subject), pick an output folder, press
-**Start**, and review the ALPS values, QC grades and HTML report.
+root where each subfolder is one subject), pick an output folder and click
+**1. Check inputs (required)** first: it only matches files (no image
+processing) and catches missing files as well as TOPUP/subject-folder
+organisation errors. **Start** stays disabled until the check passes; changing
+the input or TOPUP settings requires a new check. After a successful check,
+click **2. Start processing** and review the ALPS values, QC grades and HTML
+report.
 
 If a subject has a second DWI with the opposite phase-encoding direction
 (AP + PA), open **Advanced** and tick **TOPUP**: in single-subject mode choose
