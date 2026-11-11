@@ -6,6 +6,23 @@ repository's history.
 
 ## [Unreleased]
 
+### TOPUP (dual phase encoding)
+
+- TOPUP susceptibility-distortion correction is now available in the GUI as well
+  as the CLI. Process page → Advanced → TOPUP: single-subject mode can auto-detect
+  a reversed phase-encoding series or take a manually chosen second DWI; batch
+  mode checks every subject folder automatically.
+- New CLI options: `run --dwi2/--bval2/--bvec2/--json2` (explicit second set),
+  `batch --topup-auto` (per-subject auto pairing) and `--topup-config` (use a
+  TOPUP configuration other than FSL's automatically located b02b0.cnf).
+  Passing `--dwi2` to batch is no longer silently ignored.
+- TOPUP provenance is recorded in `alps_result.json` / `alps_summary.csv`
+  (`topup`, `topup_config`), shown in the HTML report's processing definition,
+  counted in the QC report and added to the GUI results table.
+- Help pages, tooltips, README/FAQ (English and Chinese) document the dual-PE
+  input format, GUI/CLI usage, parameters and troubleshooting; the TOPUP method
+  citation (Andersson 2003) is included in the references.
+
 ### Documentation and platform support
 
 - Quick start, installation guide, FAQ and in-app help now cover Linux and

@@ -34,6 +34,8 @@ DEFAULT_LANG = "en"
 # a single line.
 _REF_CITATION_ZH = _C.gui_tip_block("zh_CN")
 _REF_CITATION_EN = _C.gui_tip_block("en")
+_TOPUP_CITATION_ZH = _C.topup_block("zh_CN")
+_TOPUP_CITATION_EN = _C.topup_block("en")
 
 PREFS_DIR = os.path.join(os.path.expanduser("~"), ".alpsbox")
 PREFS_FILE = os.path.join(PREFS_DIR, "prefs.json")
@@ -222,6 +224,84 @@ STRINGS = {
               "data-dependent, so do not mix it with default-setting results; "
               "report whether denoising was applied when comparing studies."
               + _REF_CITATION_EN},
+    "proc.topup": {"zh_CN": "TOPUP 磁化率畸变校正（可选）",
+                   "en": "TOPUP distortion correction (optional)"},
+    "proc.topup_mode": {"zh_CN": "第二套 DWI 来源", "en": "Second DWI source"},
+    "proc.topup_auto_mode": {"zh_CN": "自动检测", "en": "Auto-detect"},
+    "proc.topup_manual_mode": {"zh_CN": "手动选择", "en": "Choose file"},
+    "proc.topup_second": {"zh_CN": "第二套 DWI（NIfTI）",
+                          "en": "Second DWI (NIfTI)"},
+    "proc.topup_config": {"zh_CN": "TOPUP 配置", "en": "TOPUP config"},
+"tip.topup": {
+        "zh_CN": "TOPUP 用两套相位编码方向相反（例如 AP 与 PA）的 DWI 估计磁化率"
+                 "畸变场，再交给 eddy 做畸变校正。\n\n"
+                 "要求：同一被试的两套 DWI，各自 .bval/.bvec 齐全；两套 .json 都要有"
+                 "PhaseEncodingDirection（同一轴、方向相反）和 TotalReadoutTime；"
+                 "每套第一个 volume 为 b0。输入格式与主数据相同：NIfTI + 同名 "
+                 ".bval + .bvec + BIDS .json；DICOM 需先用 dcm2niix 转换。\n\n"
+                 "单被试：选“自动检测”会在被试目录内寻找反向 PE 的第二套；"
+                 "选“手动选择”则指定第二套 DWI 的 NIfTI（同目录同名 bval/bvec/json "
+                 "自动匹配）。批量：每个被试目录自动检测，有则启用、无则单相位编码，"
+                 "不会中断队列。\n\n"
+                 "默认自动查找 FSL 的 b02b0.cnf；也可指定其它 TOPUP 配置文件。"
+                 "结果文件会记录 TOPUP 是否启用与配置名。\n\n"
+                 "两套数据必须来自同一被试、同一协议，仅相位编码方向相反。"
+                 + _TOPUP_CITATION_ZH,
+        "en": "TOPUP estimates a susceptibility-distortion field from two DWI "
+              "series with opposite phase-encoding directions (for example AP and "
+              "PA) and hands that field to eddy.\n\n"
+              "Requirements: both series of the same subject, each with its own "
+              ".bval/.bvec; both .json files must carry PhaseEncodingDirection "
+              "(same axis, opposite sign) and TotalReadoutTime; the first volume "
+              "of each series must be b0. Input format is the same as the main "
+              "data: NIfTI + same-name .bval + .bvec + BIDS .json; convert DICOM "
+              "with dcm2niix first.\n\n"
+              "Single subject: \"auto-detect\" searches the subject folder for a "
+              "reversed-PE series; \"choose file\" lets you pick the second DWI "
+              "NIfTI (same-name bval/bvec/json are matched automatically). Batch: "
+              "every subject folder is checked automatically; TOPUP is used when a "
+              "reversed-PE series exists, otherwise single-PE eddy runs; the "
+              "cohort is never interrupted.\n\n"
+              "By default FSL's b02b0.cnf is located automatically; a different "
+              "TOPUP configuration file can be specified. The result file records "
+              "whether TOPUP was used and which config.\n\n"
+              "Both series must come from the same subject and protocol; only the "
+              "phase-encoding direction may differ."
+              + _TOPUP_CITATION_EN},
+    "tip.topup_config": {
+        "zh_CN": "TOPUP 配置文件 b02b0.cnf 的路径。留空 = 自动在 FSL 安装目录"
+                 "（etc/flirtsch、src/topup、share/fsl/etc）中查找。"
+                 "该配置定义 topup 的优化参数；跨研究比较时请记录使用的配置。",
+        "en": "Path to the TOPUP configuration file b02b0.cnf. Empty = search "
+              "the FSL installation (etc/flirtsch, src/topup, share/fsl/etc) "
+              "automatically. The file defines topup's optimisation settings; "
+              "record it when comparing studies."},
+    "topup.status.off": {"zh_CN": "TOPUP：关闭（单相位编码 eddy）",
+                         "en": "TOPUP: off (single phase-encoding eddy)"},
+    "topup.status.batch": {"zh_CN": "TOPUP：批量模式将为每个被试自动检测反向 PE 数据",
+                           "en": "TOPUP: batch mode checks every subject folder "
+                                 "for a reversed-PE series"},
+    "topup.status.auto": {"zh_CN": "TOPUP：自动检测（在单被试目录内查找反向 PE 数据）",
+                          "en": "TOPUP: auto-detect (search the subject folder for "
+                                "a reversed-PE series)"},
+    "topup.status.manual": {"zh_CN": "TOPUP：手动指定第二套 DWI",
+                            "en": "TOPUP: choose the second DWI manually"},
+    "msg.topup_invalid": {"zh_CN": "TOPUP 设置无效", "en": "Invalid TOPUP setup"},
+    "msg.topup_second_missing": {
+        "zh_CN": "已启用 TOPUP 的手动模式，请选择第二套 DWI 的 NIfTI 文件。",
+        "en": "Manual TOPUP mode is enabled; choose the second DWI NIfTI file."},
+    "msg.topup_second_notfound": {
+        "zh_CN": "第二套 DWI 文件不存在：%s",
+        "en": "the second DWI file does not exist: %s"},
+    "msg.topup_second_invalid": {
+        "zh_CN": "第二套 DWI 不能用于 TOPUP：%s",
+        "en": "the second DWI cannot be used for TOPUP: %s"},
+    "msg.topup_cfg_missing": {
+        "zh_CN": "TOPUP 配置文件不存在：%s",
+        "en": "TOPUP configuration file not found: %s"},
+    "log.topup_invalid": {"zh_CN": "TOPUP 设置无效：%s",
+                          "en": "invalid TOPUP setup: %s"},
+    "col.topup": {"zh_CN": "TOPUP", "en": "TOPUP"},
     "proc.browse": {"zh_CN": "浏览", "en": "Browse"},
     "proc.roi_src": {"zh_CN": "ROI 来源", "en": "ROI source"},
     "proc.roi_bundled": {

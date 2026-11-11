@@ -121,6 +121,13 @@ CITATION_ROI_MASKS = (
 CITATION_TAOKA_SHORT_ZH = "Taoka 2017, Jpn J Radiol 35(4):172-178, " \
                           "doi:10.1007/s11604-017-0617-z"
 
+CITATION_TOPUP = (
+    "Andersson JLR, Skare S, Ashburner J. How to correct susceptibility "
+    "distortions in spin-echo echo-planar images: application to diffusion "
+    "tensor imaging. NeuroImage. 2003;20(2):870-888. "
+    "doi:10.1016/S1053-8119(03)00336-7"
+)
+
 # =====================================================================
 # Common combinations (quoted directly by the GUI / reports / source
 # comments so the wording never drifts)
@@ -208,6 +215,12 @@ def gui_tip_block(lang: str = "zh_CN") -> str:
     header = "文献：\n\n" if lang != "en" else "References:\n\n"
     return "\n\n" + header + format_citations(
         [CITATION_REF_SOFTWARE, CITATION_REF_PAPER])
+
+
+def topup_block(lang: str = "zh_CN") -> str:
+    """Citation block for the TOPUP option (dual phase encoding, FSL topup)."""
+    header = "文献：\n\n" if lang != "en" else "References:\n\n"
+    return "\n\n" + header + format_citations([CITATION_TOPUP])
 
 
 def roi_block(lang: str = "zh_CN") -> str:

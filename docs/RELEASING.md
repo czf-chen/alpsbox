@@ -41,7 +41,8 @@ already-applied DOI instead of duplicating it. The same helper also supports
   `quality-control`.
 - Enable Issues; enable the "Cite this repository" button for `CITATION.cff`.
 - The CI workflow in `.github/workflows/ci.yml` runs automatically on push/PR
-  (byte-compile, release-integrity audit, CLI smoke tests on Python 3.10–3.12).
+  (byte-compile, release-integrity audit, TOPUP pairing tests and CLI smoke
+  tests on Python 3.10–3.12).
 
 ## 4. Zenodo DOI
 

@@ -27,7 +27,7 @@ RESULT_COLUMNS = [
     "subject", "status", "qc", "alps_L", "alps_R", "alps_mean",
     "n_L_proj", "n_R_proj", "n_L_asso", "n_R_asso",
     "r_wm", "rms_rel_mean", "rms_rel_max", "rms_abs_mean", "rms_abs_max",
-    "n_outlier", "n_vol", "method", "seconds", "finished_at",
+    "n_outlier", "n_vol", "method", "topup", "seconds", "finished_at",
 ]
 
 
@@ -83,6 +83,8 @@ def result_to_record(r) -> dict:
         "n_slice_total": getattr(r, "n_slice_total", ""),
         "n_vol": r.n_vol,
         "method": r.method,
+        "topup": getattr(r, "topup", ""),
+        "topup_config": getattr(r, "topup_config", ""),
         "seconds": _fmt(r.seconds, 1),
         "status": status,
         "finished_at": time.strftime("%Y-%m-%d %H:%M"),
@@ -174,7 +176,8 @@ def _coerce(rec: dict) -> dict:
     for k, v in rec.items():
         lk = str(k).strip().lower()
         key = canon.get(lk, str(k).strip())
-        if key in ("subject", "method", "status", "finished_at", "qc"):
+        if key in ("subject", "method", "topup", "topup_config", "status",
+                   "finished_at", "qc"):
             out[key] = "" if v is None else str(v)
             if key == "status":
                 out[key] = canonical_status(out[key])

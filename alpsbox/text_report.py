@@ -171,7 +171,8 @@ STRINGS = {
                  "     （与 Taoka 2017 原文的 5 mm 直径一致）\n"
                  "配准：FA → %s，flirt 12 DOF，代价函数 %s\n"
                  "张量重定向：vecreg（T' = R·T·Rᵀ，Alexander 2001；Tatekawa 2023）\n"
-                 "去 Gibbs 振铃：%s    去噪（dwidenoise）：%s    bet -f：%s\n",
+                 "去 Gibbs 振铃：%s    去噪（dwidenoise）：%s    bet -f：%s\n"
+                 "TOPUP 畸变校正（双相位编码）：%s\n",
         "en": "ALPS = mean(Dxx_proj, Dxx_asso) / mean(Dyy_proj, Dzz_asso)\n"
               "\n"
               "ROI: 2.5 mm radius spheres on the JHU-ICBM-FA-1mm template, "
@@ -182,7 +183,8 @@ STRINGS = {
               "Tensor reorientation: vecreg (T' = R·T·Rᵀ, Alexander 2001; "
               "Tatekawa 2023)\n"
               "Gibbs unringing: %s    denoising (dwidenoise): %s    "
-              "bet -f: %s\n"},
+              "bet -f: %s\n"
+              "TOPUP distortion correction (dual phase encoding): %s\n"},
     "rpt.note.method": {
         "zh_CN": "以上为本次结果的实际处理口径；与其它研究比较时请先核对全部参数。"
                  "ALPS 对预处理参数（脑提取阈值、配准代价、模板、去噪等）敏感，"

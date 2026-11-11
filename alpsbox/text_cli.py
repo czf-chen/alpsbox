@@ -188,6 +188,16 @@ STRINGS = {
     "cli.opt.bvec2": {"zh_CN": "第二套 DWI 的 bvec", "en": "bvec of the second DWI"},
     "cli.opt.json2": {"zh_CN": "第二套 DWI 的 BIDS json",
                       "en": "BIDS json of the second DWI"},
+    "cli.opt.topup_auto": {
+        "zh_CN": "自动检测 TOPUP：在每个被试文件夹里寻找相位编码方向相反的第二套 DWI，"
+                 "找到就启用 TOPUP（批量模式推荐）",
+        "en": "auto-detect TOPUP: look for a second DWI with the opposite "
+              "phase-encoding direction in each subject folder and use it for "
+              "TOPUP when present (recommended for batch mode)"},
+    "cli.opt.topup_config": {
+        "zh_CN": "TOPUP 配置文件（b02b0.cnf）路径；默认自动在 FSL 安装目录中查找",
+        "en": "path to the TOPUP configuration file (b02b0.cnf); by default it "
+              "is searched for inside the FSL installation"},
     "cli.opt.radius": {"zh_CN": "自建球 ROI 半径 mm（默认 2.5；仅 --no-bundled-roi 时生效）",
                        "en": "sphere ROI radius in mm (default 2.5; only used "
                              "with --no-bundled-roi)"},
@@ -411,6 +421,8 @@ STRINGS = {
               "opposite-PE datasets, check that the json is correct."},
     "misc.dwi.json_missing": {"zh_CN": "    json : 未找到（无法做完整 eddy）",
                               "en": "    json : not found (full eddy not possible)"},
+    "misc.dwi.json2_missing": {"zh_CN": "    json2: 未找到（TOPUP 需要）",
+                               "en": "    json2: not found (TOPUP needs it)"},
     "misc.dwi.note_line": {"zh_CN": "    [注意] %s", "en": "    [warn] %s"},
     "misc.dwi.json_name_mismatch": {"zh_CN": "json 文件名与 nii 不一致（%s），按内容匹配",
                                     "en": "json filename does not match the nii "
@@ -436,6 +448,22 @@ STRINGS = {
               "<name>.bvec to exist together."},
     "misc.dwi.multi_valid": {"zh_CN": "发现 %d 组可用输入，取第一个: %s",
                              "en": "found %d usable input sets; using the first: %s"},
+    "misc.dwi.second_file_missing": {"zh_CN": "第二套 DWI 的 %s 文件不存在: %s",
+                                     "en": "the second DWI %s file does not "
+                                           "exist: %s"},
+    "misc.dwi.second_nii_missing": {"zh_CN": "第二套 DWI 的 NIfTI 不存在: %s",
+                                    "en": "the second DWI NIfTI does not exist: %s"},
+    "misc.dwi.second_incomplete_named": {
+        "zh_CN": "第二套 DWI 缺少同名的 .bval/.bvec: %s",
+        "en": "the second DWI has no same-name .bval/.bvec: %s"},
+    "misc.dwi.topup_on": {"zh_CN": "TOPUP 已启用（%s ↔ %s）",
+                          "en": "TOPUP enabled (%s <-> %s)"},
+    "misc.dwi.topup_off": {"zh_CN": "TOPUP 未启用：%s",
+                           "en": "TOPUP not used: %s"},
+    "cli.err.topup_invalid": {"zh_CN": "[错误] TOPUP 设置无效：%s",
+                              "en": "[error] invalid TOPUP setup: %s"},
+    "cli.err.topup_cfg": {"zh_CN": "[错误] TOPUP 配置文件不存在：%s",
+                          "en": "[error] TOPUP configuration file not found: %s"},
     "misc.dwi.no_eddy_meta": {
         "zh_CN": "json 缺 PhaseEncodingDirection 或 TotalReadoutTime，"
                  "将回落 eddy_correct",

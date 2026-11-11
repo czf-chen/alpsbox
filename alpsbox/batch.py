@@ -25,6 +25,7 @@ class SubjectJob:
     out_dir: str
     dwi: Optional[DwiiInput] = None
     error: str = ""
+    topup: str = ""          # TOPUP status for logging (on / skipped reason)
 
 
 def collect_jobs(root: str, out_root: str, pattern: str = "*") -> list:
@@ -70,12 +71,25 @@ def collect_results(out_root: str, results: Optional[list] = None) -> list:
     return [merged[k] for k in sorted(merged)]
 
 
-def preflight(jobs: list) -> tuple:
-    """Discover the inputs of a whole batch. Returns (usable jobs, failed jobs)."""
+def preflight(jobs: list, topup_auto: bool = False) -> tuple:
+    """Discover the inputs of a whole batch. Returns (usable jobs, failed jobs).
+
+    With *topup_auto* each subject folder is also scanned for a reversed
+    phase-encoding DWI set; when one exists it is attached to the job (TOPUP).
+    A missing second series is not an error: that subject runs single-PE.
+    """
     good, bad = [], []
     for j in jobs:
         try:
             j.dwi = discover(j.subject_dir)
+            if topup_auto:
+                from .inputs import auto_attach_topup
+                ok, why = auto_attach_topup(j.dwi, j.subject_dir)
+                if ok:
+                    j.topup = t("misc.dwi.topup_on",
+                                j.dwi.pe_direction, j.dwi.pe_direction2)
+                else:
+                    j.topup = t("misc.dwi.topup_off", why)
             good.append(j)
         except Exception as e:
             j.error = "%s: %s" % (type(e).__name__, e)
@@ -179,6 +193,18 @@ def write_qc_report(results: list, out_path: str, expect_voxels: int = 81,
     for k, v in c.most_common():
         lines.append("  %-16s %d" % (k, v))
     lines.append("")
+
+    # TOPUP usage (recorded only by results produced with dual-PE support;
+    # old result files simply show as unknown)
+    tp = Counter((str(getattr(r, "topup", "") or "unknown")).split(" (")[0]
+                 for r in ok)
+    if tp:
+        lines.append("-" * 78)
+        lines.append(t("pipe.qcr.topup"))
+        lines.append("-" * 78)
+        for k, v in tp.most_common():
+            lines.append(t("pipe.qcr.topup_line") % (k or "unknown", v))
+        lines.append("")
 
     # QC warnings
     lines.append("-" * 78)

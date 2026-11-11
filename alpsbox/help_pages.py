@@ -95,6 +95,16 @@ json 的文件名不需要和 nii 一致
       └─ sub_003/    一个被试
 
 每个子文件夹里的要求和单个被试完全相同。子文件夹之外的散文件不会被处理。
+
+可选的 TOPUP 双相位编码畸变校正
+
+如果同一被试还有一套相位编码方向相反的 DWI（例如 AP + PA），可以启用 TOPUP：
+在「高级」参数里勾选 TOPUP，单被试选“自动检测”或“手动选择”第二套 NIfTI；批量
+模式会对每个被试文件夹自动检测。两套数据各自需要同名的 .bval/.bvec，两套 .json
+都要有 PhaseEncodingDirection（同一轴、一正一负）和 TotalReadoutTime，且每套
+第一个 volume 为 b0。DICOM 同样先用 dcm2niix 转成 NIfTI + bval/bvec/json 再使用。
+两套方向相同的数据不会启用 TOPUP，日志会提示。结果文件会记录 TOPUP 是否启用、
+使用的配置名（默认自动查找 FSL 的 b02b0.cnf，也可手动指定）。
 """,
 
     "install": """ALPSbox 需要什么
@@ -201,6 +211,13 @@ macOS 先确认 python3 -c "import tkinter" 能通过；失败时看 ~/.alpsbox/
 报错 TotalReadoutTime 超出 0.01 到 0.2
 
 json 里的单位写成毫秒了，应该是秒。这个范围是 FSL eddy 源码里写死的检查。
+
+TOPUP 没有生效
+
+逐项检查：两套 .json 是否都有 PhaseEncodingDirection 与 TotalReadoutTime；
+两套方向是否同一轴、一正一负；第二套 .bval/.bvec 是否齐全；FSL 安装里是否有
+b02b0.cnf（默认自动查找，也可在高级参数中手动指定）。处理日志的 TOPUP 行会写
+跳过原因；alps_result.json / alps_summary.csv 的 topup 字段记录 on/off/skipped。
 
 报错 bvec 列数不等于体积数
 
@@ -390,6 +407,19 @@ Folder layout for batch mode
 
 Requirements inside each subfolder are identical to the single-subject case. Loose
 files outside the subfolders are ignored.
+
+Optional: TOPUP distortion correction (dual phase encoding)
+
+If the same subject has a second DWI with the opposite phase-encoding direction
+(for example AP + PA), TOPUP can be enabled under Advanced: in single-subject
+mode choose auto-detect or pick the second NIfTI; in batch mode every subject
+folder is checked automatically. Each series needs its own same-name .bval/.bvec,
+both .json files must contain PhaseEncodingDirection (same axis, one positive and
+one negative) and TotalReadoutTime, and the first volume of each series must be
+b0. Convert DICOM with dcm2niix first, exactly like the main input. Two series
+with the same direction are not used for TOPUP (the log says why). Result files
+record whether TOPUP ran and which configuration was used (FSL's b02b0.cnf is
+located automatically by default; a different file can be specified).
 """,
 
     "install": """What ALPSbox needs
@@ -502,6 +532,14 @@ Set export FSLDIR=/your/fsl/path and verify that $FSLDIR/bin/eddy exists.
 
 The JSON gives the value in milliseconds; it must be seconds. That range is a hard
 check in the FSL eddy source.
+
+TOPUP did not run
+
+Check that both JSON files carry PhaseEncodingDirection and TotalReadoutTime, that
+the two directions are on the same axis with opposite signs, that the second set
+has its own .bval/.bvec, and that FSL provides b02b0.cnf (located automatically by
+default, or chosen under Advanced). The TOPUP lines in the pipeline log give the
+skip reason; alps_result.json / alps_summary.csv record topup as on/off/skipped.
 
 "bvec columns do not match the number of volumes"
 

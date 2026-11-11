@@ -201,6 +201,12 @@ STRINGS = {
     "pipe.topup_skip_cfg": {
         "zh_CN": "        TOPUP: 跳过（找不到 b02b0.cnf 配置）",
         "en": "        TOPUP: skipped (b02b0.cnf config not found)"},
+    "pipe.topup_cfg": {
+        "zh_CN": "        TOPUP: 使用配置 %s",
+        "en": "        TOPUP: using config %s"},
+    "pipe.topup_cfg_missing": {
+        "zh_CN": "        TOPUP: 跳过（指定的配置不存在: %s）",
+        "en": "        TOPUP: skipped (specified config not found: %s)"},
     "pipe.topup_start": {
         "zh_CN": "        TOPUP: 双相位编码畸变校正",
         "en": "        TOPUP: dual phase-encoding distortion correction"},
@@ -273,6 +279,10 @@ STRINGS = {
     "pipe.qcr.methods": {
         "zh_CN": " 校正方法分布",
         "en": " Correction methods"},
+    "pipe.qcr.topup": {
+        "zh_CN": " TOPUP 双相位编码畸变校正",
+        "en": " TOPUP dual phase-encoding distortion correction"},
+    "pipe.qcr.topup_line": {"zh_CN": "  %-26s %d", "en": "  %-26s %d"},
     "pipe.qcr.warnings": {
         "zh_CN": " 质控告警",
         "en": " QC warnings"},

@@ -108,6 +108,11 @@ ALPSbox 在 Linux、macOS 上原生运行，Windows 通过 WSL2 运行；三者�
 （单个被试，或每个子文件夹一个被试的队列根目录）、选输出目录，点 **开始**，
 查看 ALPS 值、质控等级和 HTML 报告。
 
+如果同一被试还有一套相位编码方向相反的 DWI（AP + PA），展开 **高级** 并勾选
+**TOPUP**：单被试模式可选自动检测或手动指定第二套 DWI；批量模式会对每个被试
+文件夹自动检测。输入格式见[输入要求](#输入要求)；每个结果文件都会记录 TOPUP
+是否启用。
+
 已完成的被试会自动跳过，中断后可以接着跑。macOS 没有 CUDA 版 `eddy`，
 只能用 CPU（比 CUDA 机器慢约 5–10 倍）；Linux 装了 CUDA `eddy` 会自动使用。
 
@@ -125,6 +130,11 @@ alpsbox run /path/to/sub_001 --out ./results/sub_001
 
 # 批量（每个子文件夹一个被试）
 alpsbox batch /path/to/cohort --out ./results --workers 1
+
+# TOPUP（双相位编码）：单被试显式指定第二套，或队列按被试自动检测
+alpsbox run /path/to/sub_001 --out ./results/sub_001 \
+    --dwi2 AP.nii.gz --bval2 AP.bval --bvec2 AP.bvec --json2 AP.json
+alpsbox batch /path/to/cohort --out ./results --workers 1 --topup-auto
 
 # 对已有结果生成 HTML 报告
 alpsbox report /path/to/results
@@ -147,7 +157,7 @@ alpsbox report /path/to/results
 | 等级 | 通过 / 提示 / 需注意 / 不合格，均附解释 |
 | 报告 | 单文件 HTML（可打印为 PDF）：数值、质控、判读、处理口径与引用；语言跟随界面 |
 | 表格 | `alps_summary.csv`（每被试一行）、每个被试的 `alps_result.json`、`qc_report.txt` |
-| 可复现信息 | 每个 `alps_result.json` 记录实际处理口径：`bet_f`、`reg_cost`、`template`、`unring`、`denoise`、eddy 方法，以及全部质控指标 |
+| 可复现信息 | 每个 `alps_result.json` 记录实际处理口径：`bet_f`、`reg_cost`、`template`、`unring`、`denoise`、eddy 方法、TOPUP 状态与配置，以及全部质控指标 |
 
 配准稳健性质控（`--regqc`）会对配准矩阵做 12 次微小扰动，量化 ALPS 的变化幅度。
 我们的验证中这个不确定度（6–12%）远大于 eddy 本身的非确定性（2.04%，最大
@@ -158,7 +168,7 @@ alpsbox report /path/to/results
 
 - `alps_summary.csv`——每被试一行；列包括 `subject`、`ok`、`alps_L/R/mean`、
   各分量、`r_wm`、头动指标、`n_outlier`、`regqc_*`、`bet_f`、`reg_cost`、
-  `template` 与 eddy `method`。
+  `template`、eddy `method`，以及 TOPUP 状态 `topup` 与配置 `topup_config`。
 - `<被试>/alps_result.json`——单个被试的上述数值 + 处理口径；队列重跑时直接复用。
 - `<被试>/qc_report.txt`——人类可读的逐被试质控摘要。
 - `<被试>/<被试>_report.html`——单文件 HTML 报告。
@@ -184,8 +194,31 @@ sub_001/
 `eddy_correct`（有已知偏差），这类被试会在质控列标出，不要与完整 eddy 处理的被试
 在下游统计中混用。
 
-可选：提供反相位编码的第二套 DWI（`--dwi2/--bval2/--bvec2/--json2`）可启用
-TOPUP 畸变校正。
+### 可选：TOPUP 双相位编码畸变校正
+
+提供一套**相位编码方向相反**的第二套 DWI（例如 AP + PA）即可在 eddy 之前启用
+TOPUP 磁化率畸变校正。两套数据必须来自同一被试，各自使用常规的四件套
+（NIfTI + 同名 `.bval` + `.bvec` + BIDS `.json`）；每套第一个 volume 为 b0，
+两套 `.json` 都要有 `PhaseEncodingDirection`（同一轴、一正一负）与
+`TotalReadoutTime`。DICOM 需先用 dcm2niix 转换，和主数据一样。两套方向相同的
+数据不会被启用。
+
+```text
+sub_001/
+  AP/xxx.nii.gz  xxx.bval  xxx.bvec  xxx.json    # 例如 PhaseEncodingDirection = j-
+  PA/xxx.nii.gz  xxx.bval  xxx.bvec  xxx.json    # 例如 PhaseEncodingDirection = j
+```
+
+- **命令行，单被试：** `--dwi2/--bval2/--bvec2/--json2`（四个都要给）。
+- **命令行，批量：** `--topup-auto` 会检查每个被试文件夹并自动配对反向 PE
+  数据；没有第二套也没关系，按单相位编码继续。
+- **参数：** 默认自动查找 FSL 的 `b02b0.cnf`；可用
+  `--topup-config /path/to/b02b0.cnf` 指定其它配置。
+- **GUI：** **高级 → TOPUP**（自动检测或手动指定第二套 DWI；批量模式按被试
+  自动检测）。
+- **可复现信息：** `alps_result.json` / `alps_summary.csv` 增加 `topup` 状态
+  （`on`、`off`、`skipped: 原因`、`failed`）与配置名；HTML 报告的处理口径和
+  质控报告都会列出 TOPUP 使用情况。
 
 ---
 

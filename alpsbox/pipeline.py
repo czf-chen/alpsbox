@@ -80,6 +80,10 @@ class AlspResult:
     unring: str = ""            # on / off
     denoise: str = ""           # on / off
     template: str = ""          # registration template (basename)
+    # TOPUP (dual phase encoding) provenance. Values: "on", "off (...)",
+    # "skipped: <reason>", "failed", "not used (...)".
+    topup: str = ""
+    topup_config: str = ""      # basename of the b02b0.cnf actually used
     # T1-assisted registration (optional, for paired comparisons; the main result is unaffected)
     t1_assisted: str = ""       # ok / skip:... / error:...
     alps_t1: float = float("nan")
@@ -125,8 +129,9 @@ class AlspResult:
     # Timing
     seconds: float = 0.0
 
-    FIELDS = ["subject", "ok", "method", "reg_cost", "bet_f", "unring",
-              "denoise", "template", "alps_L", "alps_R", "alps_mean",
+    FIELDS = ["subject", "ok", "method", "topup", "reg_cost", "bet_f",
+              "unring", "denoise", "template", "topup_config",
+              "alps_L", "alps_R", "alps_mean",
               "dxx_L_proj", "dyy_L_proj", "dxx_L_asso", "dzz_L_asso",
               "dxx_R_proj", "dyy_R_proj", "dxx_R_asso", "dzz_R_asso",
               "r_wm", "n_vol",
@@ -228,6 +233,9 @@ class PipelineOptions:
     custom_rois: Optional[list] = None
     threads: int = 4
     template: Optional[str] = None      # default: $FSLDIR/data/atlases/JHU/JHU-ICBM-FA-1mm.nii.gz
+    # TOPUP configuration file (FSL b02b0.cnf). None = search $FSLDIR
+    # automatically; an explicit path lets users pick a different config.
+    topup_config: Optional[str] = None
     keep_intermediate: bool = True
     force: bool = False                 # ignore existing results and re-run
 
@@ -269,6 +277,10 @@ class AlspPipeline:
                 res.template = "default(JHU-ICBM-FA-1mm)"
         except Exception:
             res.template = ""
+        # TOPUP is only attempted when a reversed phase-encoding series is
+        # attached to the input; _maybe_topup() refines this status.
+        res.topup = ("not applied" if getattr(dwi, "has_dual_pe", False)
+                     else "off (no reversed-PE input)")
         os.makedirs(out_dir, exist_ok=True)
 
         # Resume: reuse an existing result unless force is set
@@ -281,6 +293,12 @@ class AlspPipeline:
                         setattr(res, k, v)
                 res.subject = subject
                 res.method = str(res.method) + " (cached)"
+                if not getattr(res, "topup", ""):
+                    if os.path.isfile(os.path.join(
+                            out_dir, "my_topup_results_fieldcoef.nii.gz")):
+                        res.topup = "on (cached)"
+                    else:
+                        res.topup = "off (no reversed-PE input)"
                 return res
             except Exception:
                 pass
@@ -679,7 +697,7 @@ class AlspPipeline:
             runner.run(["fslmaths", J("_e0b_mask"), "-bin", mask], quiet=True)
 
             # ---- TOPUP (only when a reversed phase-encoding series is provided) ----
-            topup_base = self._maybe_topup(runner, dwi, cur, out_dir)
+            topup_base = self._maybe_topup(runner, dwi, cur, out_dir, res)
 
             # ★ FSL eddy requires the "--key=value" form; spaces make it print usage and exit
             base = ["--imain=%s" % cur, "--mask=%s" % mask,
@@ -758,13 +776,13 @@ class AlspPipeline:
         print(t("pipe.eddy_no_json"))
         return self._do_eddy_correct(runner, dwi, cur, out_dir, res)
 
-    def _maybe_topup(self, runner, dwi, cur: str, out_dir: str):
+    def _maybe_topup(self, runner, dwi, cur: str, out_dir: str, res):
         """Run TOPUP for distortion correction when a reversed phase-encoding DWI exists.
 
         Returns the topup output prefix (for eddy --topup=), or None when TOPUP
         is not needed.
 
-        Principle (Andersson 2003 / Smith 2004):
+        Principle (Andersson, Skare & Ashburner 2003):
           the same brain scanned once in each of two opposite PE directions
           gives two b0 images whose geometric distortions point in opposite
           directions. topup jointly estimates an off-resonance field that
@@ -774,41 +792,57 @@ class AlspPipeline:
         Equivalent to the -i/-j/-k/-n options of gbarisano/alps.sh.
         """
         if not getattr(dwi, "has_dual_pe", False):
+            res.topup = "off (no reversed-PE input)"
             return None
         J = lambda *a: os.path.join(out_dir, *a)
         if os.path.isfile(J("my_topup_results_fieldcoef.nii.gz")):
             print(t("pipe.topup_reuse"))
+            res.topup = "on (cached)"
             return J("my_topup_results")
 
         ok, why = dwi.check_dual_pe()
         if not ok:
             print(t("pipe.topup_skip") % why)
+            res.topup = "skipped: %s" % why
             return None
 
         env = self.env
         cfg = None
-        for c in ("b02b0.cnf", "b02b0_1.cnf"):
-            p = os.path.join(env.fsl_dir or "", "etc", "flirtsch", c)
-            if os.path.isfile(p):
-                cfg = p
-                break
-        if cfg is None:
-            # Older FSL releases keep it under src/topup
-            for root in (os.path.join(env.fsl_dir or "", "src", "topup"),
-                         os.path.join(env.fsl_dir or "", "share", "fsl", "etc")):
-                if os.path.isdir(root):
-                    for dirpath, _, files in os.walk(root):
-                        for f in files:
-                            if f.startswith("b02b0"):
-                                cfg = os.path.join(dirpath, f)
-                                break
-                        if cfg:
-                            break
-                if cfg:
+        explicit = getattr(self.opts, "topup_config", None)
+        if explicit:
+            if os.path.isfile(explicit):
+                cfg = explicit
+            else:
+                print(t("pipe.topup_cfg_missing") % explicit)
+                res.topup = "skipped: TOPUP config not found (%s)" % explicit
+                return None
+        else:
+            for c in ("b02b0.cnf", "b02b0_1.cnf"):
+                p = os.path.join(env.fsl_dir or "", "etc", "flirtsch", c)
+                if os.path.isfile(p):
+                    cfg = p
                     break
+            if cfg is None:
+                # Older FSL releases keep it under src/topup
+                for root in (os.path.join(env.fsl_dir or "", "src", "topup"),
+                             os.path.join(env.fsl_dir or "", "share", "fsl", "etc")):
+                    if os.path.isdir(root):
+                        for dirpath, _, files in os.walk(root):
+                            for f in files:
+                                if f.startswith("b02b0"):
+                                    cfg = os.path.join(dirpath, f)
+                                    break
+                            if cfg:
+                                break
+                    if cfg:
+                        break
         if cfg is None:
             print(t("pipe.topup_skip_cfg"))
+            res.topup = "skipped: no b02b0.cnf found"
             return None
+        res.topup_config = os.path.basename(cfg)
+        if explicit:
+            print(t("pipe.topup_cfg") % cfg)
 
         print(t("pipe.topup_start"))
         print(t("pipe.topup_pe")
@@ -866,7 +900,9 @@ class AlspPipeline:
                     "--iout=%s" % J("my_hifi_b0.nii.gz")])
         if not os.path.isfile(pre + "_fieldcoef.nii.gz"):
             print(t("pipe.topup_fail"))
+            res.topup = "failed"
             return None
+        res.topup = "on"
         print(t("pipe.topup_done") % os.path.basename(pre))
         # eddy --index must refer to rows of the two datasets, but eddy uses
         # only the first one, so the index is rewritten to all 1s (pointing at
@@ -896,6 +932,9 @@ class AlspPipeline:
 
     def _do_eddy_correct(self, runner, dwi, cur, out_dir, res) -> str:
         J = lambda *a: os.path.join(out_dir, *a)
+        if getattr(dwi, "has_dual_pe", False) and getattr(
+                res, "topup", "") in ("", "not applied"):
+            res.topup = "not used (eddy_correct fallback)"
         runner.run(["eddy_correct", cur, J("dwi_ec"), "0"])
         if os.path.isfile(J("dwi_ec.nii.gz")):
             os.replace(J("dwi_ec.nii.gz"), J("dwi_eddy.nii.gz"))

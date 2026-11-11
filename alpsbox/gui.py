@@ -612,7 +612,79 @@ class App(tk.Tk):
             side="left", padx=(6, 0))
         Tooltip(cb_dn, t("tip.denoise"))
 
-        # Row 5: restore recommended values + currently effective settings
+        # Row 5: TOPUP (dual phase encoding, optional)
+        t5 = tk.Frame(self._adv_body, bg=P.CARD)
+        t5.pack(fill="x", pady=(12, 0))
+        _tp = _advp.get("topup", {}) if isinstance(_advp.get("topup"), dict) else {}
+        self.var_topup = tk.BooleanVar(value=bool(_tp.get("enabled", False)))
+        cb_tp = ttk.Checkbutton(t5, text=t("proc.topup"),
+                                variable=self.var_topup)
+        cb_tp.pack(side="left")
+        HelpDot(t5, HELP["topup"], title=t("proc.topup")).pack(
+            side="left", padx=(6, 0))
+        Tooltip(cb_tp, t("tip.topup"))
+
+        # Row 6: second-DWI source (auto-detect vs manual file)
+        t6 = tk.Frame(self._adv_body, bg=P.CARD)
+        t6.pack(fill="x", pady=(8, 0))
+        tk.Label(t6, text=t("proc.topup_mode"), bg=P.CARD, fg=P.TEXT,
+                 width=18, anchor="w").pack(side="left")
+        self.var_topup_mode = tk.StringVar(
+            value=str(_tp.get("mode", "auto") or "auto"))
+        self.rb_topup_auto = ttk.Radiobutton(
+            t6, text=t("proc.topup_auto_mode"), value="auto",
+            variable=self.var_topup_mode)
+        self.rb_topup_auto.pack(side="left", padx=(0, 12))
+        self.rb_topup_manual = ttk.Radiobutton(
+            t6, text=t("proc.topup_manual_mode"), value="manual",
+            variable=self.var_topup_mode)
+        self.rb_topup_manual.pack(side="left")
+        HelpDot(t6, HELP["topup"], title=t("proc.topup")).pack(
+            side="left", padx=(6, 0))
+
+        # Row 7: manual second-DWI file (single-subject mode only)
+        t7 = tk.Frame(self._adv_body, bg=P.CARD)
+        t7.pack(fill="x", pady=(8, 0))
+        tk.Label(t7, text=t("proc.topup_second"), bg=P.CARD, fg=P.TEXT,
+                 width=18, anchor="w").pack(side="left")
+        self.var_topup_second = tk.StringVar(value="")
+        self.ent_topup_second = ttk.Entry(t7,
+                                          textvariable=self.var_topup_second)
+        self.ent_topup_second.pack(side="left", fill="x", expand=True,
+                                   padx=(0, 7))
+        self.btn_topup_second = RoundButton(
+            t7, t("proc.browse"), command=self._browse_topup_second,
+            variant="light", height=28, padx=12)
+        self.btn_topup_second.pack(side="left")
+
+        # Row 8: TOPUP configuration file (blank = auto-detect b02b0.cnf)
+        t8 = tk.Frame(self._adv_body, bg=P.CARD)
+        t8.pack(fill="x", pady=(8, 0))
+        tk.Label(t8, text=t("proc.topup_config"), bg=P.CARD, fg=P.TEXT,
+                 width=18, anchor="w").pack(side="left")
+        self.var_topup_config = tk.StringVar(
+            value=str(_tp.get("config", "") or ""))
+        self.ent_topup_cfg = ttk.Entry(t8,
+                                       textvariable=self.var_topup_config)
+        self.ent_topup_cfg.pack(side="left", fill="x", expand=True,
+                                padx=(0, 7))
+        Tooltip(self.ent_topup_cfg, t("tip.topup_config"))
+        self.btn_topup_cfg = RoundButton(
+            t8, t("proc.browse"), command=self._browse_topup_config,
+            variant="light", height=28, padx=12)
+        self.btn_topup_cfg.pack(side="left")
+        HelpDot(t8, HELP["topup"], title=t("proc.topup")).pack(
+            side="left", padx=(6, 0))
+
+        # Row 9: live TOPUP status
+        t9 = tk.Frame(self._adv_body, bg=P.CARD)
+        t9.pack(fill="x", pady=(6, 0))
+        self.lbl_topup = tk.Label(t9, text="", bg=P.CARD, fg=P.TEXT_FAINT,
+                                  font=self.F["small"], anchor="w",
+                                  justify="left")
+        self.lbl_topup.pack(fill="x")
+
+        # Row 10: restore recommended values + currently effective settings
         a5 = tk.Frame(self._adv_body, bg=P.CARD)
         a5.pack(fill="x", pady=(12, 0))
         self.btn_adv_reset = RoundButton(
@@ -624,11 +696,18 @@ class App(tk.Tk):
             font=self.F["small"], anchor="w", justify="left")
         self.lbl_adv_cur.pack(side="left", padx=(12, 0))
         for _v in (self.var_bet_f, self.var_reg_cost, self.var_template,
-                   self.var_denoise):
+                   self.var_denoise, self.var_topup, self.var_topup_mode,
+                   self.var_topup_second, self.var_topup_config):
             try:
                 _v.trace_add("write", self._update_adv_summary)
             except Exception:
                 pass
+        for _v in (self.var_topup, self.var_topup_mode):
+            try:
+                _v.trace_add("write", self._update_topup_ui)
+            except Exception:
+                pass
+        self._update_topup_ui()
         self._update_adv_summary()
 
         tk.Label(self._adv_body, text=t("proc.advanced_hint"), bg=P.CARD,
@@ -848,7 +927,7 @@ class App(tk.Tk):
             "rms_abs_mean": t("col.drift_mean"),
             "rms_abs_max": t("col.drift_max"),
             "n_outlier": t("col.outlier_short"), "n_vol": t("col.n_vol"),
-            "method": t("col.method"),
+            "method": t("col.method"), "topup": t("col.topup"),
             "seconds": t("col.seconds"), "finished_at": t("col.finished"),
         }
         widths = {
@@ -857,7 +936,7 @@ class App(tk.Tk):
             "n_L_asso": 58, "n_R_asso": 58, "r_wm": 58,
             "rms_rel_mean": 76, "rms_rel_max": 76,
             "rms_abs_mean": 76, "rms_abs_max": 76,
-            "n_outlier": 50, "n_vol": 58, "method": 100,
+            "n_outlier": 50, "n_vol": 58, "method": 100, "topup": 150,
             "seconds": 68, "finished_at": 116,
         }
         self.tree = ttk.Treeview(host, columns=cols, show="headings", height=16)
@@ -1750,6 +1829,10 @@ class App(tk.Tk):
         self.lbl_in.configure(text=t("proc.indir") if single else t("proc.rootdir"))
         self.var_in.set("")
         self._update_summary()
+        try:
+            self._update_topup_ui()
+        except Exception:
+            pass
 
     def _on_roi(self):
         m = self.roi_mode.get()
@@ -1788,6 +1871,79 @@ class App(tk.Tk):
         if p:
             self.var_template.set(p)
 
+    def _browse_topup_second(self):
+        """Pick the second DWI NIfTI used for TOPUP (manual mode)."""
+        p = filedialog.askopenfilename(
+            title=t("proc.topup_second"),
+            filetypes=[(t("misc.nii_filter"), "*.nii *.nii.gz"), ("*", "*")])
+        if p:
+            self.var_topup_second.set(p)
+
+    def _browse_topup_config(self):
+        """Pick a TOPUP configuration file (b02b0.cnf)."""
+        p = filedialog.askopenfilename(
+            title=t("proc.topup_config"),
+            filetypes=[("b02b0.cnf", "b02b0*.cnf"), ("*", "*")])
+        if p:
+            self.var_topup_config.set(p)
+
+    def _update_topup_ui(self, *_a):
+        """Enable/disable the TOPUP controls and show the current mode."""
+        if not hasattr(self, "var_topup"):
+            return
+        enabled = bool(self.var_topup.get())
+        batch = (self.mode.get() == "batch")
+        try:
+            if batch and self.var_topup_mode.get() == "manual":
+                self.var_topup_mode.set("auto")
+        except Exception:
+            pass
+        manual = (enabled and not batch
+                  and self.var_topup_mode.get() == "manual")
+        try:
+            self.ent_topup_second.configure(
+                state="normal" if manual else "disabled")
+            self.btn_topup_second.set_enabled(manual)
+            self.ent_topup_cfg.configure(
+                state="normal" if enabled else "disabled")
+            self.btn_topup_cfg.set_enabled(enabled)
+            self.rb_topup_auto.configure(
+                state="normal" if enabled else "disabled")
+            self.rb_topup_manual.configure(
+                state="disabled" if (batch or not enabled) else "normal")
+        except Exception:
+            pass
+        if not enabled:
+            txt = t("topup.status.off")
+        elif batch:
+            txt = t("topup.status.batch")
+        elif manual:
+            txt = t("topup.status.manual")
+        else:
+            txt = t("topup.status.auto")
+        try:
+            self.lbl_topup.configure(text=txt)
+        except Exception:
+            pass
+        self._update_adv_summary()
+
+    def _topup_settings(self):
+        """Read and validate the TOPUP controls; return a settings dict or None."""
+        if not hasattr(self, "var_topup") or not bool(self.var_topup.get()):
+            return None
+        cfg = self.var_topup_config.get().strip() or None
+        if cfg and not os.path.isfile(cfg):
+            raise ValueError(t("msg.topup_cfg_missing", cfg))
+        batch = (self.mode.get() == "batch")
+        mode = "auto" if batch else (self.var_topup_mode.get() or "auto")
+        nii2 = self.var_topup_second.get().strip()
+        if mode == "manual":
+            if not nii2:
+                raise ValueError(t("msg.topup_second_missing"))
+            if not os.path.isfile(nii2):
+                raise ValueError(t("msg.topup_second_notfound", nii2))
+        return {"mode": mode, "nii2": nii2, "config": cfg}
+
     def _update_adv_summary(self, *_a):
         """Refresh the "currently effective settings" line (live on every change)."""
         lbl = getattr(self, "lbl_adv_cur", None)
@@ -1804,10 +1960,21 @@ class App(tk.Tk):
             den = t("on") if bool(self.var_denoise.get()) else t("off")
         except Exception:
             den = "?"
+        try:
+            tp_on = bool(self.var_topup.get())
+            tp_mode = self.var_topup_mode.get() if tp_on else ""
+            tp_cfg = self.var_topup_config.get().strip() if tp_on else ""
+        except Exception:
+            tp_on, tp_mode, tp_cfg = False, "", ""
+        if tp_on:
+            tp_s = "%s(%s)" % (t("on"), tp_mode or "auto")
+        else:
+            tp_s = t("off")
         default = (abs(betf - 0.5) < 1e-9 and cost == "normmi"
-                   and not tpl and den == t("off"))
-        txt = "bet_f=%.2f / %s / %s / denoise=%s" % (
-            betf, cost, tpl_s, den)
+                   and not tpl and den == t("off")
+                   and not tp_on and not tp_cfg)
+        txt = "bet_f=%.2f / %s / %s / denoise=%s / topup=%s" % (
+            betf, cost, tpl_s, den, tp_s)
         if default:
             txt += t("proc.adv_recommended")
         else:
@@ -1825,16 +1992,24 @@ class App(tk.Tk):
             self.var_reg_cost.set("normmi")
             self.var_template.set("")
             self.var_denoise.set(False)
+            self.var_topup.set(False)
+            self.var_topup_mode.set("auto")
+            self.var_topup_second.set("")
+            self.var_topup_config.set("")
         except Exception:
             return
         try:
             i18n.save_pref({"adv": {"bet_f": 0.5, "reg_cost": "normmi",
-                                    "template": "", "denoise": False}})
+                                    "template": "", "denoise": False,
+                                    "topup": {"enabled": False, "mode": "auto",
+                                              "config": ""}}})
         except Exception:
             pass
+        self._update_topup_ui()
         self._update_adv_summary()
         self._log(t("proc.adv_reset") + ": bet_f=0.50 / normmi / "
-                 "JHU-ICBM-FA-1mm / denoise=" + t("off"), "muted")
+                 "JHU-ICBM-FA-1mm / denoise=" + t("off")
+                 + " / topup=" + t("off"), "muted")
 
     def _browse_out(self):
         d = filedialog.askdirectory(title=t("proc.pick_out"))
@@ -2093,9 +2268,15 @@ class App(tk.Tk):
         out = self.var_out.get().strip() or os.path.join(indir, "alps_results")
 
         def work():
+            try:
+                topup = self._topup_settings()
+            except ValueError as e:
+                self.q.put(("log", t("log.topup_invalid", e)))
+                return
             if mode == "batch":
                 jobs = collect_jobs(indir, out)
-                good, bad = preflight(jobs)
+                good, bad = preflight(
+                    jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
                 self.q.put(("log", t("log.job_count", len(jobs))))
                 for j in bad:
                     self.q.put(("log", t(
@@ -2108,6 +2289,8 @@ class App(tk.Tk):
                     pe = d.json_info.get("PhaseEncodingDirection", "-") if d else "-"
                     self.q.put(("log", t("log.runnable", j.subject,
                                          ok_json, pe)))
+                    if topup and j.topup:
+                        self.q.put(("log", "    " + j.topup))
                 self.q.put(("log", t("log.preflight_sum", len(good),
                                      len(bad))))
             else:
@@ -2115,6 +2298,19 @@ class App(tk.Tk):
                     d = discover(indir)
                     self.q.put(("log", t(
                         "log.found_dwi", os.path.basename(d.nii))))
+                    if topup:
+                        from .inputs import (attach_second_from_nii,
+                                            auto_attach_topup)
+                        try:
+                            if topup["mode"] == "manual":
+                                ok, why = attach_second_from_nii(
+                                    d, topup["nii2"])
+                            else:
+                                ok, why = auto_attach_topup(d, indir)
+                        except Exception as e:
+                            ok, why = False, str(e)
+                        if not ok:
+                            self.q.put(("log", t("misc.dwi.topup_off", why)))
                     self.q.put(("log", d.describe()))
                 except Exception as e:
                     self.q.put(("log", t("log.missing_one", e)))
@@ -2143,6 +2339,11 @@ class App(tk.Tk):
             messagebox.showerror(t("msg.output_invalid"),
                                  t("msg.output_invalid_body"))
             return
+        try:
+            topup = self._topup_settings()
+        except ValueError as e:
+            messagebox.showerror(t("msg.topup_invalid"), str(e))
+            return
         custom = None
         if self.roi_mode.get() == "custom":
             custom = [x for x in self.var_custom.get().split(",") if x.strip()]
@@ -2153,6 +2354,7 @@ class App(tk.Tk):
                 return
         opts = PipelineOptions(
             radius=float(self.var_radius.get()),
+            topup_config=(topup["config"] if topup else None),
             unring=bool(self.var_unring.get()),
             regqc=bool(getattr(self, "var_regqc",
                                tk.BooleanVar(value=False)).get()),
@@ -2180,6 +2382,14 @@ class App(tk.Tk):
                              if hasattr(self, "var_template") else ""),
                 "denoise": bool(getattr(self, "var_denoise",
                                         tk.BooleanVar(value=False)).get()),
+                "topup": {
+                    "enabled": bool(getattr(self, "var_topup",
+                                            tk.BooleanVar(value=False)).get()),
+                    "mode": str(getattr(self, "var_topup_mode",
+                                        tk.StringVar(value="auto")).get()),
+                    "config": (self.var_topup_config.get().strip()
+                               if hasattr(self, "var_topup_config") else ""),
+                },
             }})
         except Exception:
             pass
@@ -2205,10 +2415,11 @@ class App(tk.Tk):
         self._log("  %s%s%s" % (t("msg.output"), t("sep.colon"), outdir))
         self._log("=" * 58)
         self.worker = threading.Thread(
-            target=self._run_worker, args=(indir, outdir, opts, mode), daemon=True)
+            target=self._run_worker,
+            args=(indir, outdir, opts, mode, topup), daemon=True)
         self.worker.start()
 
-    def _run_worker(self, indir, outdir, opts, mode):
+    def _run_worker(self, indir, outdir, opts, mode, topup=None):
         old = sys.stdout
         sys.stdout = QueueWriter(self.q)
         try:
@@ -2229,7 +2440,8 @@ class App(tk.Tk):
                     self.q.put(("log", t("log.all_done")))
                     self.q.put(("done", ([], outdir)))
                     return
-                good, bad = preflight(jobs)
+                good, bad = preflight(
+                    jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
                 for j in bad:
                     self.q.put(("log", t(
                         "log.skipped", j.subject,
@@ -2238,6 +2450,10 @@ class App(tk.Tk):
                         "subject": j.subject,
                         "status": j.error.split("\n")[0][:120],
                         "finished_at": time.strftime("%Y-%m-%d %H:%M")}))
+                if topup:
+                    for j in good:
+                        if j.topup:
+                            self.q.put(("log", "    " + j.topup))
                 total = len(good)
                 self.q.put(("log", t("log.batch_total", total)))
                 pipe = AlspPipeline(self.env, opts)
@@ -2292,6 +2508,28 @@ class App(tk.Tk):
                         "finished_at": time.strftime("%Y-%m-%d %H:%M")}))
                     self.q.put(("done", ([], outdir)))
                     return
+                if topup:
+                    from .inputs import (attach_second_from_nii,
+                                        auto_attach_topup)
+                    try:
+                        if topup["mode"] == "manual":
+                            ok, why = attach_second_from_nii(
+                                dwi, topup["nii2"])
+                        else:
+                            ok, why = auto_attach_topup(dwi, indir)
+                    except Exception as e:
+                        ok, why = False, str(e)
+                    if not ok:
+                        if topup["mode"] == "manual":
+                            msg = t("msg.topup_second_invalid", why)
+                            self.q.put(("log", msg))
+                            self.q.put(("record", {
+                                "subject": name, "status": msg[:120],
+                                "finished_at": time.strftime(
+                                    "%Y-%m-%d %H:%M")}))
+                            self.q.put(("done", ([], outdir)))
+                            return
+                        self.q.put(("log", t("misc.dwi.topup_off", why)))
                 self.q.put(("log", dwi.describe()))
                 out_sub = os.path.join(outdir, name)
                 self.q.put(("progress", (15.0, t("proc.starting", name))))

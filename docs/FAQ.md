@@ -46,6 +46,17 @@ run under a Python without `numpy`/`nibabel`.
 Each subject folder needs one matched set: `*.nii(.gz)` + same-named `.bval` +
 same-named `.bvec`. The base names must match exactly. Subfolders are searched.
 
+**Where do I enable TOPUP, and why was TOPUP skipped?**
+TOPUP is for a second DWI with the opposite phase-encoding direction (AP + PA).
+GUI: Process page → **Advanced → TOPUP** (single: auto-detect or choose the
+second DWI; batch: automatic per-subject detection). CLI: `--dwi2/--bval2/
+--bvec2/--json2` for `run`, `--topup-auto` for `batch`, `--topup-config` for a
+custom `b02b0.cnf`. It is skipped when no reversed-PE series exists, when either
+JSON lacks `PhaseEncodingDirection`/`TotalReadoutTime`, when both series use the
+same direction, or when `b02b0.cnf` cannot be found. The log and the `topup`
+column in `alps_summary.csv` / `alps_result.json` give the reason; the second set
+must be NIfTI + `.bval` + `.bvec` + `.json` (convert DICOM with dcm2niix first).
+
 **`TotalReadoutTime out of range`**
 The BIDS sidecar must give `TotalReadoutTime` in seconds (typically 0.01–0.2).
 Some converters write milliseconds; fix the JSON.

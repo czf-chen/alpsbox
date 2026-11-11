@@ -76,12 +76,11 @@ def _add_common(p: argparse.ArgumentParser):
                    help=argparse.SUPPRESS)
     p.add_argument("--regqc", action="store_true",
                    help=t("cli.opt.regqc"))
-    # ---- optional: second DWI with reversed phase encoding, for TOPUP ----
-    p.add_argument("--dwi2", default=None,
-                   help=t("cli.opt.dwi2"))
-    p.add_argument("--bval2", default=None, help=t("cli.opt.bval2"))
-    p.add_argument("--bvec2", default=None, help=t("cli.opt.bvec2"))
-    p.add_argument("--json2", default=None, help=t("cli.opt.json2"))
+    # ---- TOPUP (optional dual phase encoding) ----
+    p.add_argument("--topup-auto", dest="topup_auto", action="store_true",
+                   help=t("cli.opt.topup_auto"))
+    p.add_argument("--topup-config", dest="topup_config", default=None,
+                   help=t("cli.opt.topup_config"))
     p.add_argument("--radius", type=float, default=DEFAULT_RADIUS_MM,
                    help=t("cli.opt.radius"))
     p.add_argument("--no-bundled-roi", "--no-official-roi",
@@ -108,15 +107,19 @@ def cmd_check(args) -> int:
 
 def cmd_dryrun(args) -> int:
     env = detect_env(args.fsl_dir, verbose=True)
+    if not _check_topup_config(args):
+        return 2
     jobs = collect_jobs(args.root, args.out)
     print(t("cli.dryrun.found", len(jobs)))
-    good, bad = preflight(jobs)
+    good, bad = preflight(jobs, topup_auto=getattr(args, "topup_auto", False))
     print("=" * 68)
     print(t("cli.dryrun.header"))
     print("=" * 68)
     for j in good:
         print("\n  [OK] %s" % j.subject)
         print(j.dwi.describe())
+        if j.topup and not j.dwi.has_dual_pe:
+            print("        " + j.topup)
     for j in bad:
         print("\n  [FAIL] %s" % j.subject)
         print("         %s" % j.error.replace("\n", "\n         "))
@@ -130,6 +133,7 @@ def _make_opts(args) -> PipelineOptions:
         custom = [x.strip() for x in args.custom_rois.split(",") if x.strip()]
     return PipelineOptions(
         radius=args.radius,
+        topup_config=getattr(args, "topup_config", None),
         unring=not args.no_unring,
         denoise=getattr(args, "denoise", False),
         regqc=getattr(args, "regqc", False),
@@ -143,6 +147,15 @@ def _make_opts(args) -> PipelineOptions:
         template=args.template,
         force=args.force,
     )
+
+
+def _check_topup_config(args) -> bool:
+    """Fail fast when an explicit --topup-config path does not exist."""
+    p = getattr(args, "topup_config", None)
+    if p and not os.path.isfile(p):
+        print(t("cli.err.topup_cfg", p))
+        return False
+    return True
 
 
 def _numpy_ok() -> bool:
@@ -176,21 +189,20 @@ def cmd_run(args) -> int:
         return 2
 
     # Optional: attach the reversed phase-encoding dataset (for TOPUP)
+    if not _check_topup_config(args):
+        return 2
     if getattr(args, "dwi2", None):
-        from .inputs import read_json_info as _rji
-        dwi.nii2 = args.dwi2
-        dwi.bval2 = args.bval2
-        dwi.bvec2 = args.bvec2
-        dwi.json2 = args.json2
-        if args.json2:
-            try:
-                dwi.json_info2 = _rji(args.json2)
-            except Exception as e:
-                print(t("cli.warn.read_json", args.json2, e))
-        ok, why = dwi.check_dual_pe()
-        print(t("cli.dual.header", os.path.basename(args.dwi2)))
-        print("  TOPUP: %s" % (t("cli.dual.on", why) if ok
-                               else t("cli.dual.off") + why))
+        from .inputs import attach_explicit_second
+        ok, why = attach_explicit_second(dwi, args.dwi2, args.bval2,
+                                         args.bvec2, args.json2)
+        if not ok:
+            print(t("cli.err.topup_invalid", why))
+            return 2
+    elif getattr(args, "topup_auto", False):
+        from .inputs import auto_attach_topup
+        ok, why = auto_attach_topup(dwi, args.subject_dir)
+        if not ok:
+            print(t("misc.dwi.topup_off", why))
 
     name = args.name or os.path.basename(os.path.normpath(args.subject_dir))
     out = args.out or os.path.join("alps_results", name)
@@ -227,6 +239,8 @@ def cmd_run(args) -> int:
 
 def cmd_batch(args) -> int:
     _warn_numpy_missing()
+    if not _check_topup_config(args):
+        return 2
     env = detect_env(args.fsl_dir, verbose=False)
     if not env.ok:
         print(env.summary())
@@ -253,11 +267,15 @@ def cmd_batch(args) -> int:
     csv_path = os.path.join(args.out, "alps_summary.csv")
     qc_path = os.path.join(args.out, "qc_report.txt")
 
-    good, bad = preflight(jobs)
+    good, bad = preflight(jobs, topup_auto=getattr(args, "topup_auto", False))
     print(t("cli.batch.preflight", len(good), len(bad)))
     for j in bad:
         print(t("cli.batch.skip_row", j.subject,
                 j.error.split("\n")[0][:80]))
+    if getattr(args, "topup_auto", False):
+        for j in good:
+            if j.topup:
+                print("  %-18s %s" % (j.subject, j.topup))
 
     if not good:
         # Resume re-entry: every subject is already done -- do not fail, just
@@ -475,6 +493,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("subject_dir", help=t("cli.arg.subject_dir"))
     p.add_argument("--out", default=None, help=t("cli.arg.out"))
     p.add_argument("--name", default=None, help=t("cli.arg.name"))
+    # Explicit second DWI set (TOPUP) is meaningful for one subject only;
+    # batch mode pairs each subject folder automatically (--topup-auto).
+    p.add_argument("--dwi2", default=None, help=t("cli.opt.dwi2"))
+    p.add_argument("--bval2", default=None, help=t("cli.opt.bval2"))
+    p.add_argument("--bvec2", default=None, help=t("cli.opt.bvec2"))
+    p.add_argument("--json2", default=None, help=t("cli.opt.json2"))
     _add_common(p)
     p.set_defaults(func=cmd_run)
 

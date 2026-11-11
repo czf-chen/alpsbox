@@ -122,6 +122,12 @@ Chinese for this session. Then pick the input folder (one subject, or a cohort
 root where each subfolder is one subject), pick an output folder, press
 **Start**, and review the ALPS values, QC grades and HTML report.
 
+If a subject has a second DWI with the opposite phase-encoding direction
+(AP + PA), open **Advanced** and tick **TOPUP**: in single-subject mode choose
+auto-detect or pick the second DWI file; in batch mode each subject folder is
+checked automatically. See [Input requirements](#input-requirements) for the
+format; whether TOPUP ran is recorded in every result file.
+
 Finished subjects are skipped automatically, so interrupted runs can be resumed.
 On macOS there is no CUDA build of `eddy`, so it runs on the CPU (roughly 5–10×
 slower than a CUDA Linux machine); on Linux a CUDA `eddy` is used automatically
@@ -141,6 +147,12 @@ alpsbox run /path/to/sub_001 --out ./results/sub_001
 
 # batch, one subfolder per subject
 alpsbox batch /path/to/cohort --out ./results --workers 1
+
+# TOPUP (dual phase encoding): explicit second set for one subject, or
+# per-subject auto-detection for a cohort
+alpsbox run /path/to/sub_001 --out ./results/sub_001 \
+    --dwi2 AP.nii.gz --bval2 AP.bval --bvec2 AP.bvec --json2 AP.json
+alpsbox batch /path/to/cohort --out ./results --workers 1 --topup-auto
 
 # generate HTML reports from existing results
 alpsbox report /path/to/results
@@ -164,7 +176,7 @@ See [docs/FAQ.md](docs/FAQ.md) for common errors and
 | Grades | pass / info / caution / fail, each with an explanation |
 | Report | single-file HTML (printable to PDF) with values, QC, interpretation, processing definition and citations; language follows the interface |
 | Tables | `alps_summary.csv` (one row per subject), per-subject `alps_result.json`, `qc_report.txt` |
-| Provenance | each `alps_result.json` records the processing definition actually used: `bet_f`, `reg_cost`, `template`, `unring`, `denoise`, eddy method, plus all QC metrics |
+| Provenance | each `alps_result.json` records the processing definition actually used: `bet_f`, `reg_cost`, `template`, `unring`, `denoise`, eddy method, TOPUP status/config, plus all QC metrics |
 
 The registration-robustness QC (`--regqc`) perturbs the registration matrix 12
 times and measures how much ALPS changes. In our validation, this uncertainty
@@ -176,7 +188,8 @@ See [docs/VALIDATION.md](docs/VALIDATION.md) for all experimental parameters.
 
 - `alps_summary.csv` — one row per subject; columns include `subject`, `ok`,
   `alps_L/R/mean`, the components, `r_wm`, motion metrics, `n_outlier`,
-  `regqc_*`, `bet_f`, `reg_cost`, `template` and the eddy `method`.
+  `regqc_*`, `bet_f`, `reg_cost`, `template`, the eddy `method`, and the
+  TOPUP status (`topup`) / configuration (`topup_config`).
 - `<subject>/alps_result.json` — the same values for one subject, together with
   the processing definition; re-running a finished cohort reuses it.
 - `<subject>/qc_report.txt` — human-readable per-subject QC summary.
@@ -204,8 +217,33 @@ values. Without the `.json` sidecar the pipeline falls back to `eddy_correct`,
 which has known biases; such subjects are flagged in the QC column and should
 not be mixed with fully eddy-corrected subjects in downstream analyses.
 
-Optional: a second DWI with the opposite phase-encoding direction
-(`--dwi2/--bval2/--bvec2/--json2`) enables TOPUP distortion correction.
+### Optional: TOPUP distortion correction (dual phase encoding)
+
+A second DWI with the **opposite** phase-encoding direction (for example AP + PA)
+enables TOPUP susceptibility-distortion correction before eddy. Both series must
+belong to the same subject and use the usual four files (NIfTI + same-name
+`.bval` + `.bvec` + BIDS `.json`); the first volume of each series must be b0 and
+both `.json` files must contain `PhaseEncodingDirection` (same axis, one positive
+and one negative) and `TotalReadoutTime`. DICOM must be converted with dcm2niix
+first, exactly like the main input. Two series with the same PE direction are
+rejected.
+
+```text
+sub_001/
+  AP/xxx.nii.gz  xxx.bval  xxx.bvec  xxx.json    # e.g. PhaseEncodingDirection = j-
+  PA/xxx.nii.gz  xxx.bval  xxx.bvec  xxx.json    # e.g. PhaseEncodingDirection = j
+```
+
+- **CLI, one subject:** `--dwi2/--bval2/--bvec2/--json2` (all four are required).
+- **CLI, batch:** `--topup-auto` checks every subject folder and pairs a reversed
+  series when present; a missing second series is fine (single-PE eddy runs).
+- **Parameters:** FSL's `b02b0.cnf` is located automatically; pass
+  `--topup-config /path/to/b02b0.cnf` to use a different configuration.
+- **GUI:** **Advanced → TOPUP** (auto-detect or choose the second DWI; batch mode
+  detects per subject automatically).
+- **Provenance:** `alps_result.json` / `alps_summary.csv` carry a `topup` status
+  (`on`, `off`, `skipped: reason`, `failed`) and the config name; the HTML report
+  lists it under the processing definition and QC report counts TOPUP usage.
 
 ---
 

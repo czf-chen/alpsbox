@@ -117,12 +117,15 @@ _CITATION_ROI_MASKS_EN = (
 )
 
 
-def _reference_list(lang: str) -> list:
+def _reference_list(lang: str, extra=None) -> list:
     """Entries for the references section of the report (one paragraph each:
-    method -> reorientation -> software -> paper -> masks)."""
+    method -> reorientation -> software -> paper -> masks [+ optional extra])."""
     roi = _C.CITATION_ROI_MASKS if lang == "zh_CN" else _CITATION_ROI_MASKS_EN
-    return [_C.CITATION_ALPS_METHOD, _TATEKAWA_REF, _ALEXANDER_REF,
+    refs = [_C.CITATION_ALPS_METHOD, _TATEKAWA_REF, _ALEXANDER_REF,
             _C.CITATION_REF_SOFTWARE, _C.CITATION_REF_PAPER, roi]
+    if extra:
+        refs = refs + list(extra)
+    return refs
 
 
 def _num(x):
@@ -437,16 +440,24 @@ def _build_html(rec: dict, out_path: str, images: dict | None = None,
     unring = _g("unring", "on")
     denoise = _g("denoise", "off")
     template = _g("template") or "JHU-ICBM-FA-1mm"
+    topup = _g("topup", "off")
+    topup_cfg = _g("topup_config", "")
+    if isinstance(topup, str) and topup.startswith("on") and topup_cfg:
+        topup_show = "%s (%s)" % (topup, topup_cfg)
+    else:
+        topup_show = str(topup)
 
     body.append('<h2>%s</h2>' % t("rpt.h.method"))
     body.append("<pre>%s</pre>" % t("rpt.method.block", template, reg_cost,
-                                    unring, denoise, bet_f))
+                                    unring, denoise, bet_f, topup_show))
     body.append('<div class="note">%s</div>' % t("rpt.note.method"))
 
     # ---- 7. References (one item each, so they do not merge into a single
     # block; sources in citations.py) ----
     body.append("<h2>%s</h2>" % t("rpt.h.refs"))
-    _refs = _reference_list(i18n.get_lang())
+    _extra = ([_C.CITATION_TOPUP]
+              if str(topup).lower().startswith("on") else None)
+    _refs = _reference_list(i18n.get_lang(), _extra)
     body.append('<ol class="refs">%s</ol>'
                 % "".join("<li>%s</li>" % r for r in _refs))
     body.append('<div class="note">%s</div>' % t("rpt.note.term"))

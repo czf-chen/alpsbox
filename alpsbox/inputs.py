@@ -102,6 +102,21 @@ class DwiiInput:
                 self.json_info.get("TotalReadoutTime", "?")))
         else:
             lines.append(t("misc.dwi.json_missing"))
+        if self.has_dual_pe:
+            lines.append("    DWI2 : %s" % os.path.basename(str(self.nii2)))
+            if self.json2:
+                lines.append("    json2: %s" % os.path.basename(str(self.json2)))
+                lines.append("            PE2=%s  TRT2=%s" % (
+                    self.json_info2.get("PhaseEncodingDirection", "?"),
+                    self.json_info2.get("TotalReadoutTime", "?")))
+            else:
+                lines.append(t("misc.dwi.json2_missing"))
+            ok, why = self.check_dual_pe()
+            if ok:
+                lines.append("    " + t("misc.dwi.topup_on",
+                                        self.pe_direction, self.pe_direction2))
+            else:
+                lines.append("    " + t("misc.dwi.topup_off", why))
         for n in self.notes:
             lines.append(t("misc.dwi.note_line", n))
         return "\n".join(lines)
@@ -243,6 +258,132 @@ def discover(subject_dir: str, deep: bool = True) -> DwiiInput:
         dwi.notes.append(t("misc.dwi.no_eddy_meta"))
 
     return dwi
+
+
+def discover_all(subject_dir: str, deep: bool = True) -> list:
+    """Return every complete DWI set under *subject_dir*.
+
+    Each entry is a :class:`DwiiInput` with its BIDS json sidecar resolved the
+    same way as :func:`discover`. Used to find the reversed phase-encoding
+    series for TOPUP when several DWI sets share one subject folder.
+    """
+    if not os.path.isdir(subject_dir):
+        raise FileNotFoundError(t("misc.dwi.no_dir", subject_dir))
+
+    pattern = os.path.join(subject_dir, "**", "*.nii*") if deep \
+        else os.path.join(subject_dir, "*.nii*")
+    all_nii = [p for p in glob.glob(pattern, recursive=deep)
+               if p.endswith((".nii", ".nii.gz"))]
+
+    out = []
+    for nii in _rank_nii_candidates(all_nii):
+        stem = _stem_of(nii)
+        if not (os.path.isfile(stem + ".bval")
+                and os.path.isfile(stem + ".bvec")):
+            continue
+        d = DwiiInput(nii=nii, bval=stem + ".bval", bvec=stem + ".bvec")
+        jp, info, jnotes = find_json_for(d, subject_dir)
+        d.json = jp
+        d.json_info = info
+        d.notes.extend(jnotes)
+        out.append(d)
+    return out
+
+
+def find_reversed_dwi(primary: DwiiInput, candidates: list) -> tuple:
+    """Pick the candidate whose phase-encoding direction is opposite to *primary*.
+
+    Returns ``(second, reason)``; ``second`` is None when no usable pair exists
+    and ``reason`` is a human-readable explanation.
+    """
+    others = [c for c in candidates
+              if os.path.abspath(c.nii) != os.path.abspath(primary.nii)]
+    if not others:
+        return None, t("misc.dwi.no_second")
+    reasons = []
+    for c in others:
+        p1, p2 = primary.pe_direction, c.pe_direction
+        if not p1 or not p2:
+            reasons.append(t("misc.dwi.pe_missing"))
+            continue
+        if p1.rstrip("-") != p2.rstrip("-"):
+            reasons.append(t("misc.dwi.pe_other_axis", p1, p2))
+            continue
+        if p1 == p2:
+            reasons.append(t("misc.dwi.pe_same", p1))
+            continue
+        return c, "OK"
+    return None, reasons[0] if reasons else t("misc.dwi.no_second")
+
+
+def attach_second(primary: DwiiInput, second: DwiiInput) -> DwiiInput:
+    """Attach a discovered second DWI set to *primary* as the TOPUP input."""
+    primary.nii2 = second.nii
+    primary.bval2 = second.bval
+    primary.bvec2 = second.bvec
+    primary.json2 = second.json
+    primary.json_info2 = dict(second.json_info or {})
+    return primary
+
+
+def attach_explicit_second(primary: DwiiInput, nii2: str, bval2: str,
+                           bvec2: str, json2: str) -> tuple:
+    """Attach a second DWI set given explicitly by file paths (CLI ``--dwi2``...).
+
+    All four files are required: the json is needed for the phase-encoding
+    direction and readout time. Returns ``(ok, reason)``.
+    """
+    if not (nii2 and bval2 and bvec2 and json2):
+        return False, t("misc.dwi.second_incomplete")
+    for label, path in (("nii", nii2), ("bval", bval2),
+                        ("bvec", bvec2), ("json", json2)):
+        if not path or not os.path.isfile(path):
+            return False, t("misc.dwi.second_file_missing", label, path)
+    second = DwiiInput(nii=nii2, bval=bval2, bvec=bvec2, json=json2,
+                       json_info=read_json_info(json2))
+    attach_second(primary, second)
+    return primary.check_dual_pe()
+
+
+def attach_second_from_nii(primary: DwiiInput, nii2: str) -> tuple:
+    """Attach a second DWI chosen by its NIfTI path (GUI file picker).
+
+    The companion .bval/.bvec must share the NIfTI base name; the json is
+    resolved like the main input. Returns ``(ok, reason)``.
+    """
+    if not nii2 or not os.path.isfile(nii2):
+        return False, t("misc.dwi.second_nii_missing", nii2)
+    stem = _stem_of(nii2)
+    bval2, bvec2 = stem + ".bval", stem + ".bvec"
+    if not os.path.isfile(bval2) or not os.path.isfile(bvec2):
+        return False, t("misc.dwi.second_incomplete_named",
+                        os.path.basename(nii2))
+    second = DwiiInput(nii=nii2, bval=bval2, bvec=bvec2)
+    jp, info, jnotes = find_json_for(second, os.path.dirname(nii2))
+    second.json = jp
+    second.json_info = info
+    second.notes.extend(jnotes)
+    attach_second(primary, second)
+    return primary.check_dual_pe()
+
+
+def auto_attach_topup(primary: DwiiInput, subject_dir: str,
+                      deep: bool = True) -> tuple:
+    """Find and attach a reversed-PE series for TOPUP automatically.
+
+    Used by batch mode and by the GUI's "auto-detect" option. A missing second
+    series is not an error: the caller continues with single-PE eddy. Returns
+    ``(ok, reason)``.
+    """
+    try:
+        candidates = discover_all(subject_dir, deep)
+    except Exception as e:
+        return False, str(e)
+    second, why = find_reversed_dwi(primary, candidates)
+    if second is None:
+        return False, why
+    attach_second(primary, second)
+    return primary.check_dual_pe()
 
 
 def validate_bvec_bval(dwi: DwiiInput) -> list:

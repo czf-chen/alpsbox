@@ -22,6 +22,14 @@ alpsbox check
 - **bvec 列数与体积数不符**：先跑 `alpsbox dryrun` 检查。
 - **没有 json**：无法用完整 eddy，会回落到 `eddy_correct`（已知偏差），质控会标出，
   不要与其他 eddy 处理的被试在下游混用。
+- **TOPUP 在哪里开？为什么没生效？** TOPUP 针对相位编码方向相反的第二套 DWI
+  （AP + PA）。GUI：处理页 → **高级 → TOPUP**（单被试选自动检测或手动指定第二套；
+  批量自动按被试检测）；命令行：`run` 用 `--dwi2/--bval2/--bvec2/--json2`，
+  `batch` 用 `--topup-auto`，可用 `--topup-config` 指定 b02b0.cnf。没有反向 PE
+  数据、任一 json 缺 `PhaseEncodingDirection`/`TotalReadoutTime`、两套方向相同、
+  或找不到 b02b0.cnf 时会跳过；日志和 `alps_summary.csv` / `alps_result.json` 的
+  `topup` 列会给出原因。第二套必须是 NIfTI + `.bval` + `.bvec` + `.json`
+  （DICOM 先用 dcm2niix 转换）。
 
 ## 处理
 
