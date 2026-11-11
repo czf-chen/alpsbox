@@ -243,8 +243,11 @@ STRINGS = {
                  "找不到时，如果上级目录只有少量子文件夹且名称像同一序列的 AP/PA "
                  "导出，会在相邻文件夹中继续查找（日志会注明使用了哪个相邻文件夹，"
                  "请确认属于同一被试）。选“手动选择”则指定第二套 DWI 的 NIfTI"
-                 "（同目录同名 bval/bvec/json 自动匹配）。批量：每个被试目录自动"
-                 "检测，有则启用、无则单相位编码，不会中断队列。\n\n"
+                 "（同目录同名 bval/bvec/json 自动匹配）。批量：根目录每个直接子文件夹"
+                 "是一个被试，AP/PA 要放在同一个被试文件夹；每个被试目录自动检测，"
+                 "有则启用、无则单相位编码。预检会阻止把同一被试的 AP/PA 放成两个"
+                 "被试文件夹，并检查 bval/bvec、采集元数据和图像几何的一致性，明显"
+                 "不一致会阻止处理。\n\n"
                  "默认自动查找 FSL 的 b02b0.cnf；也可指定其它 TOPUP 配置文件。"
                  "结果文件会记录 TOPUP 是否启用与配置名。\n\n"
                  "两套数据必须来自同一被试、同一协议，仅相位编码方向相反。"
@@ -263,10 +266,13 @@ STRINGS = {
               "are checked when their names look like AP/PA variants of one series "
               "(the log names the sibling folder used; confirm it belongs to the "
               "same subject). \"Choose file\" lets you pick the second DWI NIfTI "
-              "(same-name bval/bvec/json are matched automatically). Batch: "
-              "every subject folder is checked automatically; TOPUP is used when a "
-              "reversed-PE series exists, otherwise single-PE eddy runs; the "
-              "cohort is never interrupted.\n\n"
+              "(same-name bval/bvec/json are matched automatically). Batch: every "
+              "immediate subfolder is one subject; keep both PE series inside it. "
+              "Each subject folder is checked automatically; TOPUP is used when a "
+              "reversed-PE series exists, otherwise single-PE eddy runs. Preflight "
+              "blocks a layout where one subject's AP/PA are split into two subject "
+              "folders, and checks bval/bvec, acquisition metadata and geometry "
+              "consistency; an obvious mismatch blocks processing.\n\n"
               "By default FSL's b02b0.cnf is located automatically; a different "
               "TOPUP configuration file can be specified. The result file records "
               "whether TOPUP was used and which config.\n\n"
@@ -557,7 +563,7 @@ STRINGS = {
     "roi.no_template": {"zh_CN": "未找到 JHU-ICBM-FA-1mm 模板，仅显示 ROI 轮廓",
                         "en": "JHU-ICBM-FA-1mm template not found; ROI outlines only"},
 
-    # ================= Second batch (added for gui.py) ================= 
+    # ================= Second batch (added for gui.py) =================
     "col.drift_max": {"zh_CN": "漂移最大", "en": "Drift max"},
     "col.drift_mean": {"zh_CN": "漂移均值", "en": "Drift mean"},
     "col.jitter_max": {"zh_CN": "抖动最大", "en": "Jitter max"},

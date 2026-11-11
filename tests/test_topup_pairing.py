@@ -17,7 +17,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from alpsbox import i18n                       # noqa: E402
-from alpsbox.batch import collect_jobs, preflight  # noqa: E402
+from alpsbox.batch import (collect_jobs, preflight,  # noqa: E402
+                           topup_layout_errors, write_preflight_report)
 from alpsbox.inputs import (DwiiInput, attach_explicit_second,  # noqa: E402
                             attach_second_from_nii, auto_attach_topup,
                             discover, discover_all, find_reversed_dwi)
@@ -37,17 +38,20 @@ def check(cond, label):
         _FAILS.append(label)
 
 
-def make_set(folder, stem, pe):
+def make_set(folder, stem, pe, bval="0 1000 1000\n", protocol=None):
     """Create a minimal NIfTI/bval/bvec/json DWI set (data content unused)."""
     os.makedirs(folder, exist_ok=True)
     nii = os.path.join(folder, stem + ".nii.gz")
     open(nii, "wb").close()
     with open(os.path.join(folder, stem + ".bval"), "w") as fh:
-        fh.write("0 1000 1000\n")
+        fh.write(bval)
     with open(os.path.join(folder, stem + ".bvec"), "w") as fh:
         fh.write("0 1 0\n0 0 1\n1 0 0\n")
+    info = {"PhaseEncodingDirection": pe, "TotalReadoutTime": 0.05}
+    if protocol:
+        info["ProtocolName"] = protocol
     with open(os.path.join(folder, stem + ".json"), "w") as fh:
-        json.dump({"PhaseEncodingDirection": pe, "TotalReadoutTime": 0.05}, fh)
+        json.dump(info, fh)
     return nii
 
 
@@ -350,6 +354,71 @@ def test_topup_aware_resume():
               "cached TOPUP provenance preserved")
 
 
+def test_pair_consistency():
+    """Opposite PE alone is not enough: acquisition/metadata must agree too."""
+    print("== pair consistency checks ==")
+    from alpsbox.inputs import TopupPairError
+    with tempfile.TemporaryDirectory() as d:
+        make_set(d, "ap", "j-", bval="0 1000 1000\n", protocol="seq")
+        make_set(d, "pa", "j", bval="0 3000 3000\n", protocol="seq")
+        raised = False
+        why = ""
+        try:
+            auto_attach_topup(discover(d), d)
+        except TopupPairError as e:
+            raised, why = True, str(e)
+        check(raised, "different b-value schemes are rejected")
+        check("bval" in why, "the b-value mismatch is explained")
+    with tempfile.TemporaryDirectory() as d:
+        make_set(d, "ap", "j-", protocol="seq_A")
+        make_set(d, "pa", "j", protocol="seq_B")
+        raised = False
+        why = ""
+        try:
+            auto_attach_topup(discover(d), d)
+        except TopupPairError as e:
+            raised, why = True, str(e)
+        check(raised, "different protocol names are rejected")
+        check("protocol" in why.lower(), "the protocol mismatch is explained")
+    with tempfile.TemporaryDirectory() as d:
+        make_set(d, "ap", "j-", protocol="seq")
+        make_set(d, "pa", "j", protocol="seq")
+        ok, why = auto_attach_topup(discover(d), d)
+        check(ok, "consistent pair is still accepted")
+
+
+def test_batch_layout_guard():
+    """Split AP/PA subject folders are blocked; nested AP/PA stay one subject."""
+    print("== batch layout guard ==")
+    with tempfile.TemporaryDirectory() as root:
+        make_set(os.path.join(root, "dMRI_AP_1.5mm"), "dwi", "j-")
+        make_set(os.path.join(root, "dMRI_PA_1.5mm"), "dwi", "j")
+        out = os.path.join(root, "out")
+        jobs = collect_jobs(root, out)
+        good, bad = preflight(jobs, topup_auto=True)
+        errs = topup_layout_errors(good, bad)
+        check(len(errs) >= 1,
+              "split AP/PA subject folders are flagged before processing")
+        report = write_preflight_report(good, [], out, errs)
+        text = open(report, encoding="utf-8").read()
+        check("AP/PA" in text, "preflight report records the layout error")
+    with tempfile.TemporaryDirectory() as root:
+        for sub in ("sub-01", "sub-02"):
+            make_set(os.path.join(root, sub, "AP"), "dwi", "j-")
+            make_set(os.path.join(root, sub, "PA"), "dwi", "j")
+        out = os.path.join(root, "out")
+        jobs = collect_jobs(root, out)
+        check(len(jobs) == 2, "nested layout gives one job per subject folder")
+        good, bad = preflight(jobs, topup_auto=True)
+        check(len(good) == 2 and not bad, "nested subjects pass preflight")
+        check(all(j.dwi.has_dual_pe for j in good),
+              "AP+PA inside one subject folder are paired for TOPUP")
+        check(topup_layout_errors(good, bad) == [],
+              "nested layout is not flagged")
+        check(len({j.out_dir for j in good}) == 2,
+              "one result folder per subject (not per AP/PA folder)")
+
+
 def test_provenance_fields():
     print("== TOPUP provenance fields ==")
     r = AlspResult(subject="s1", ok=True, method="eddy_gpu",
@@ -392,6 +461,8 @@ def main():
     test_discovery_and_pairing()
     test_batch_auto_pairing()
     test_sibling_pairing()
+    test_pair_consistency()
+    test_batch_layout_guard()
     test_pipeline_topup_step()
     test_topup_aware_resume()
     test_provenance_fields()

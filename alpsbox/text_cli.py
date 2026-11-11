@@ -191,12 +191,15 @@ STRINGS = {
     "cli.opt.topup_auto": {
         "zh_CN": "自动检测 TOPUP：在每个被试文件夹里寻找相位编码方向相反的第二套 DWI，"
                  "找到就启用 TOPUP（批量模式推荐；单被试模式还会检查上级目录中的少量"
-                 "相邻文件夹，用于 AP/PA 分文件夹导出的情况）",
+                 "相邻文件夹，用于 AP/PA 分文件夹导出的情况）。批量预检会阻止把同一"
+                 "被试的 AP/PA 放成两个被试文件夹，并检查配对的一致性",
         "en": "auto-detect TOPUP: look for a second DWI with the opposite "
               "phase-encoding direction in each subject folder and use it for "
               "TOPUP when present (recommended for batch mode; in single-subject "
               "mode a few sibling folders of the same parent are also checked, "
-              "for AP/PA exports split across folders)"},
+              "for AP/PA exports split across folders). Batch preflight blocks a "
+              "layout where one subject's AP/PA are split into two subject "
+              "folders, and checks pair consistency"},
     "cli.opt.topup_config": {
         "zh_CN": "TOPUP 配置文件（b02b0.cnf）路径；默认自动在 FSL 安装目录中查找",
         "en": "path to the TOPUP configuration file (b02b0.cnf); by default it "
@@ -463,6 +466,54 @@ STRINGS = {
                           "en": "TOPUP enabled (%s <-> %s)"},
     "misc.dwi.topup_off": {"zh_CN": "TOPUP 未启用：%s",
                            "en": "TOPUP not used: %s"},
+    "misc.dwi.pair_bval_mismatch": {
+        "zh_CN": "两套数据的 bval 有 %d 个体积不一致，可能不是同一采集/同一被试",
+        "en": "%d volumes differ in bval between the two series; they may come "
+              "from different acquisitions/subjects"},
+    "misc.dwi.pair_bvec_mismatch": {
+        "zh_CN": "两套数据的 bvec 数值个数不同（%d vs %d）",
+        "en": "the bvec files contain different numbers of values (%d vs %d)"},
+    "misc.dwi.pair_meta_mismatch": {
+        "zh_CN": "采集元数据 %s 不一致（%s vs %s）",
+        "en": "acquisition metadata %s differs (%s vs %s)"},
+    "misc.dwi.pair_protocol_mismatch": {
+        "zh_CN": "协议名去掉方向标记后不一致（%s vs %s），可能不是同一序列",
+        "en": "protocol names differ after removing the direction token "
+              "(%s vs %s); they may not be the same series"},
+    "misc.dwi.pair_geometry_mismatch": {
+        "zh_CN": "图像几何不一致（%s: %s vs %s）",
+        "en": "image geometry differs (%s: %s vs %s)"},
+    "misc.dwi.pair_inconsistent": {
+        "zh_CN": "第二套 DWI 与主数据不一致：%s",
+        "en": "the second DWI is inconsistent with the main data: %s"},
+    "misc.dwi.pair_inconsistent_where": {
+        "zh_CN": "在 %s 中找到反向相位编码数据，但与主数据不一致：%s",
+        "en": "found reversed phase-encoding data in %s but it is inconsistent "
+              "with the main data: %s"},
+    "batch.topup.split_subject": {
+        "zh_CN": "被试文件夹“%s”和“%s”看起来是同一被试的 AP/PA 两套数据，"
+                 "却被组织成了两个被试；请把两套数据放进同一个被试文件夹后重跑",
+        "en": "subject folders \"%s\" and \"%s\" look like the AP/PA series of "
+              "one subject but are organized as two subjects; put both series in "
+              "one subject folder and rerun"},
+    "batch.topup.layout_header": {
+        "zh_CN": "TOPUP 批量组织检查发现问题（未开始处理）：",
+        "en": "TOPUP batch layout check found problems (nothing was processed):"},
+    "batch.report.title": {
+        "zh_CN": "ALPSbox 批量预检记录",
+        "en": "ALPSbox batch preflight report"},
+    "batch.report.summary": {
+        "zh_CN": "可用被试 %d，失败 %d，TOPUP 组织错误 %d",
+        "en": "usable subjects %d, failed %d, TOPUP layout errors %d"},
+    "batch.report.done": {
+        "zh_CN": "（本文件在处理开始前写入，作为预检记录）",
+        "en": "(written before processing as a preflight record)"},
+    "cli.batch.report": {"zh_CN": "预检记录: %s",
+                         "en": "preflight report: %s"},
+    "cli.batch.blocked": {
+        "zh_CN": "已在处理开始前停止。请按上面的提示重新组织被试文件夹后重跑。",
+        "en": "Stopped before any processing. Reorganize the subject folders "
+              "as described above and rerun."},
     "misc.dwi.sibling_used": {
         "zh_CN": "在相邻文件夹“%s”中找到反向相位编码的第二套 DWI；"
                  "请确认它与主数据来自同一被试",

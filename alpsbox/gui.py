@@ -38,7 +38,9 @@ from . import qc as qcmod
 from . import helptext
 from .i18n import t
 from . import i18n
-from .batch import collect_jobs, collect_results, preflight, write_qc_report, write_summary
+from .batch import (collect_jobs, collect_results, preflight,
+                    topup_layout_errors, write_preflight_report,
+                    write_qc_report, write_summary)
 from .config import detect_env
 from .helptext import HELP
 from .pipeline import AlspPipeline, AlspResult, PipelineOptions
@@ -2399,6 +2401,12 @@ class App(tk.Tk):
                 jobs = collect_jobs(indir, out)
                 good, bad = preflight(
                     jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
+                layout_errors = (topup_layout_errors(good, bad)
+                                 if topup else [])
+                if layout_errors:
+                    self.q.put(("log", t("batch.topup.layout_header")))
+                    for e in layout_errors:
+                        self.q.put(("log", "  - " + e))
                 self.q.put(("log", t("log.job_count", len(jobs))))
                 for j in bad:
                     self.q.put(("log", t(
@@ -2431,6 +2439,8 @@ class App(tk.Tk):
                                 ok, why = auto_attach_topup(
                                     d, indir, search_siblings=True)
                         except Exception as e:
+                            self.q.put(("log", t("msg.topup_second_invalid",
+                                                 e)))
                             ok, why = False, str(e)
                         if not ok:
                             self.q.put(("log", t("misc.dwi.topup_off", why)))
@@ -2565,6 +2575,14 @@ class App(tk.Tk):
                     return
                 good, bad = preflight(
                     jobs, topup_auto=bool(topup and topup["mode"] == "auto"))
+                layout_errors = (topup_layout_errors(good, bad)
+                                 if topup else [])
+                try:
+                    report = write_preflight_report(good, bad, outdir,
+                                                    layout_errors)
+                    self.q.put(("log", t("cli.batch.report", report)))
+                except Exception:
+                    pass
                 for j in bad:
                     self.q.put(("log", t(
                         "log.skipped", j.subject,
@@ -2573,6 +2591,13 @@ class App(tk.Tk):
                         "subject": j.subject,
                         "status": j.error.split("\n")[0][:120],
                         "finished_at": time.strftime("%Y-%m-%d %H:%M")}))
+                if layout_errors:
+                    self.q.put(("log", t("batch.topup.layout_header")))
+                    for e in layout_errors:
+                        self.q.put(("log", "  - " + e))
+                    self.q.put(("log", t("cli.batch.blocked")))
+                    self.q.put(("done", ([], outdir)))
+                    return
                 if topup:
                     for j in good:
                         if j.topup:
@@ -2632,7 +2657,8 @@ class App(tk.Tk):
                     self.q.put(("done", ([], outdir)))
                     return
                 if topup:
-                    from .inputs import (attach_second_from_nii,
+                    from .inputs import (TopupPairError,
+                                        attach_second_from_nii,
                                         auto_attach_topup)
                     try:
                         if topup["mode"] == "manual":
@@ -2641,6 +2667,15 @@ class App(tk.Tk):
                         else:
                             ok, why = auto_attach_topup(
                                 dwi, indir, search_siblings=True)
+                    except TopupPairError as e:
+                        msg = t("msg.topup_second_invalid", e)
+                        self.q.put(("log", msg))
+                        self.q.put(("record", {
+                            "subject": name, "status": msg[:120],
+                            "finished_at": time.strftime(
+                                "%Y-%m-%d %H:%M")}))
+                        self.q.put(("done", ([], outdir)))
+                        return
                     except Exception as e:
                         ok, why = False, str(e)
                     if not ok:

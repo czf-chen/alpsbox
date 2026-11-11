@@ -29,6 +29,16 @@ repository's history.
   `batch --topup-auto` (per-subject auto pairing) and `--topup-config` (use a
   TOPUP configuration other than FSL's automatically located b02b0.cnf).
   Passing `--dwi2` to batch is no longer silently ignored.
+- Batch safety: before processing, batch preflight now blocks a layout where
+  one subject's AP/PA series are organized as two separate subject folders
+  (clear error + `preflight_report.txt` + GUI/CLI log), and checks every TOPUP
+  pair for a consistent b-value scheme, b-vectors, JSON acquisition metadata and
+  image geometry. Inconsistent/mixed pairs are blocked with an explanation
+  instead of being silently used or silently skipped. Nested AP/PA folders
+  inside one subject folder remain valid and produce one result folder per
+  subject. BIDS JSON has no patient identifiers, so identical-protocol data from
+  different subjects cannot be distinguished automatically — this limitation is
+  documented.
 - TOPUP provenance is recorded in `alps_result.json` / `alps_summary.csv`
   (`topup`, `topup_config`), shown in the HTML report's processing definition,
   counted in the QC report and added to the GUI results table.

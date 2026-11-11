@@ -250,6 +250,47 @@ sub_001/
   (`on`, `off`, `skipped: reason`, `failed`) and the config name; the HTML report
   lists it under the processing definition and QC report counts TOPUP usage.
 
+#### Batch layout and safety checks (important)
+
+In batch mode **one immediate subfolder of the cohort root = one subject**, and
+each subject gets exactly one result folder. A subject folder may contain the
+AP/PA series in any of these forms; they are all paired and processed once:
+
+```text
+cohort/
+  sub-001/
+    AP/  dwi.nii.gz dwi.bval dwi.bvec dwi.json   # opposite PE
+    PA/  dwi.nii.gz dwi.bval dwi.bvec dwi.json   # opposite PE
+  sub-002/                                        # or both sets side by side
+    dwi_AP.nii.gz ... dwi_PA.nii.gz ...
+```
+
+Before any processing starts, the batch preflight checks the layout and the
+quality of each TOPUP pair:
+
+- **Split subject folders are blocked**: if two *subject* folders look like the
+  AP/PA series of one subject (similar name after the direction token, opposite
+  phase-encoding directions), the batch stops before processing, lists the
+  folders and writes `preflight_report.txt` in the output folder. Merge both
+  series into one subject folder (with an `AP/` and a `PA/` subfolder, or the two
+  series side by side) and rerun.
+- **Pair consistency is checked**: the two series must share the b-value scheme,
+  b-vector count, acquisition metadata that is present in both JSON files (TE,
+  TR, slice thickness, field strength, manufacturer, protocol name after
+  removing the direction token) and image geometry (dimensions, voxel size,
+  affine; checked when nibabel is available). A reversed-PE candidate that
+  obviously belongs to another acquisition/subject blocks the run with a clear
+  error instead of being silently used or silently skipped.
+- **Record**: the subject list, PE directions, TOPUP status and every blocking
+  error are written to `<output>/preflight_report.txt` before processing, and
+  also appear in the GUI/CLI log.
+- **Limitation**: a BIDS JSON sidecar from dcm2niix normally carries no patient
+  identifier, so two different subjects acquired with an identical protocol,
+  matrix, geometry and diffusion scheme cannot be distinguished automatically
+  from the images alone. The checks above catch inconsistent/mixed data, but
+  correct data organization remains the user's responsibility; keep the DICOM
+  patient information at the source and always verify the subject folders.
+
 ---
 
 ## Installation

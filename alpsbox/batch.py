@@ -14,7 +14,8 @@ from typing import Optional
 from . import text_pipeline  # noqa: F401  (registers pipe.* message keys)
 from .config import EnvStatus
 from .i18n import t
-from .inputs import discover, DwiiInput
+from .inputs import (TopupPairError, discover, DwiiInput,
+                     names_are_pe_variants)
 from .pipeline import AlspPipeline, AlspResult, PipelineOptions
 
 
@@ -26,6 +27,7 @@ class SubjectJob:
     dwi: Optional[DwiiInput] = None
     error: str = ""
     topup: str = ""          # TOPUP status for logging (on / skipped reason)
+    fatal: bool = False      # a TOPUP consistency error that must abort the batch
 
 
 def collect_jobs(root: str, out_root: str, pattern: str = "*") -> list:
@@ -91,10 +93,92 @@ def preflight(jobs: list, topup_auto: bool = False) -> tuple:
                 else:
                     j.topup = t("misc.dwi.topup_off", why)
             good.append(j)
+        except TopupPairError as e:
+            j.error = str(e)
+            j.fatal = True
+            bad.append(j)
         except Exception as e:
             j.error = "%s: %s" % (type(e).__name__, e)
             bad.append(j)
     return good, bad
+
+
+def topup_layout_errors(good: list, bad=None) -> list:
+    """Detect dangerous TOPUP batch layouts *before* processing.
+
+    Two kinds of problems are returned as blocking errors:
+
+    1. A subject whose own reversed-PE pair failed the same-subject consistency
+       checks during preflight (``fatal`` jobs).
+    2. Two separate subject folders that look like the AP/PA series of ONE
+       subject (e.g. ``..._AP_...__1801`` and ``..._PA_...__1701`` as two subject
+       folders). TOPUP must not silently treat them as two single-PE subjects,
+       and the result-folder layout would be wrong (two results for one subject).
+    """
+    errs = []
+    for j in bad or []:
+        if getattr(j, "fatal", False):
+            errs.append("%s: %s" % (j.subject, j.error))
+    cand = []
+    for j in good or []:
+        d = getattr(j, "dwi", None)
+        if d is None or getattr(d, "has_dual_pe", False):
+            continue
+        pe = d.pe_direction
+        if not pe:
+            continue
+        cand.append((j, pe))
+    for i in range(len(cand)):
+        for k in range(i + 1, len(cand)):
+            ji, pi = cand[i]
+            jk, pk = cand[k]
+            if pi.rstrip("-") != pk.rstrip("-") or pi == pk:
+                continue
+            if not names_are_pe_variants(ji.subject, jk.subject, strict=True):
+                continue
+            errs.append(t("batch.topup.split_subject",
+                          ji.subject, jk.subject))
+    return errs
+
+
+def write_preflight_report(good: list, bad: list, out_root: str,
+                           layout_errors=None) -> str:
+    """Write a plain-text preflight record (subject list, TOPUP status, errors).
+
+    This is written before processing starts, so a blocked or interrupted run
+    still leaves a record of what was checked and why it was blocked.
+    """
+    import time as _time
+    os.makedirs(out_root, exist_ok=True)
+    path = os.path.join(out_root, "preflight_report.txt")
+    lines = []
+    lines.append("=" * 78)
+    lines.append(t("batch.report.title"))
+    lines.append(_time.strftime("%Y-%m-%d %H:%M:%S"))
+    lines.append("=" * 78)
+    lines.append(t("batch.report.summary", len(good), len(bad or []), len(layout_errors or [])))
+    lines.append("")
+    for j in good or []:
+        d = getattr(j, "dwi", None)
+        pe = d.pe_direction if d else "?"
+        nii = os.path.basename(d.nii) if d else "-"
+        lines.append("[OK]   %-24s PE=%-3s TOPUP=%-6s %s"
+                     % (j.subject, pe,
+                        "on" if d and getattr(d, "has_dual_pe", False) else "off",
+                        nii))
+    for j in bad or []:
+        lines.append("[FAIL] %-24s %s" % (j.subject, j.error))
+    if layout_errors:
+        lines.append("")
+        lines.append("-" * 78)
+        lines.append(t("batch.topup.layout_header"))
+        for e in layout_errors:
+            lines.append("  - %s" % e)
+    lines.append("")
+    lines.append(t("batch.report.done"))
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return path
 
 
 def run_batch(jobs: list, env: EnvStatus, opts: PipelineOptions,

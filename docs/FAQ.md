@@ -57,7 +57,19 @@ used. If the parent contains many subjects, select the parent folder containing
 both series or choose the second DWI manually. Re-running a subject that was
 previously processed without TOPUP is handled automatically: the stale
 single-PE result is detected and reprocessed with TOPUP (no need to delete the
-old result by hand). CLI: `--dwi2/--bval2/
+old result by hand).
+
+**How must a TOPUP batch be organized?**
+One immediate subfolder of the cohort root = one subject, and one subject gets
+one result folder. Put both PE series inside that subject folder (e.g. `AP/` and
+`PA/` subfolders, or the two series side by side). If two *subject* folders look
+like the AP/PA series of one subject, batch preflight stops before processing and
+writes `preflight_report.txt` with the reason — merge them into one subject
+folder and rerun. Pair consistency (b-value scheme, b-vectors, JSON acquisition
+metadata and image geometry) is checked; an obviously inconsistent/mixed pair is
+blocked instead of being used. Note that BIDS JSON has no patient identifiers, so
+two subjects with an identical protocol/geometry cannot be distinguished
+automatically: the tool catches inconsistencies, not every mis-filed subject. CLI: `--dwi2/--bval2/
 --bvec2/--json2` for `run`, `--topup-auto` for `batch`, `--topup-config` for a
 custom `b02b0.cnf`. It is skipped when no reversed-PE series exists, when either
 JSON lacks `PhaseEncodingDirection`/`TotalReadoutTime`, when both series use the

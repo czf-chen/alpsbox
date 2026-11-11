@@ -344,7 +344,13 @@ def attach_explicit_second(primary: DwiiInput, nii2: str, bval2: str,
     second = DwiiInput(nii=nii2, bval=bval2, bvec=bvec2, json=json2,
                        json_info=read_json_info(json2))
     attach_second(primary, second)
-    return primary.check_dual_pe()
+    ok, why = primary.check_dual_pe()
+    if not ok:
+        return False, why
+    errs = pair_consistency_errors(primary, second)
+    if errs:
+        return False, t("misc.dwi.pair_inconsistent", "; ".join(errs))
+    return True, "OK"
 
 
 def attach_second_from_nii(primary: DwiiInput, nii2: str) -> tuple:
@@ -366,7 +372,13 @@ def attach_second_from_nii(primary: DwiiInput, nii2: str) -> tuple:
     second.json_info = info
     second.notes.extend(jnotes)
     attach_second(primary, second)
-    return primary.check_dual_pe()
+    ok, why = primary.check_dual_pe()
+    if not ok:
+        return False, why
+    errs = pair_consistency_errors(primary, second)
+    if errs:
+        return False, t("misc.dwi.pair_inconsistent", "; ".join(errs))
+    return True, "OK"
 
 
 # Folder-name tokens that mark a phase-encoding direction. Used only for the
@@ -386,8 +398,14 @@ def _name_stem(name: str) -> str:
     return "".join(x for x in _name_tokens(name) if x not in _PE_NAME_TOKENS)
 
 
-def _names_are_pe_variants(a: str, b: str) -> bool:
-    """Heuristic: two sibling folder names look like AP/PA variants of one series."""
+def names_are_pe_variants(a: str, b: str, strict: bool = False) -> bool:
+    """Heuristic: two folder names look like AP/PA variants of one series.
+
+    With *strict* the common stem must be identical or nearly identical
+    (similarity >= 0.9). The strict form is used for batch-level safety checks,
+    where a false positive would block unrelated subjects (e.g. sub-01_AP vs
+    sub-02_PA must NOT be treated as the same subject).
+    """
     ta, tb = _name_tokens(a), _name_tokens(b)
     if not any(x in _PE_NAME_TOKENS for x in ta):
         return False
@@ -396,7 +414,112 @@ def _names_are_pe_variants(a: str, b: str) -> bool:
     sa, sb = _name_stem(a), _name_stem(b)
     if not sa or not sb:
         return True
-    return difflib.SequenceMatcher(None, sa, sb).ratio() >= 0.6
+    ratio = difflib.SequenceMatcher(None, sa, sb).ratio()
+    return ratio >= (0.9 if strict else 0.6)
+
+
+# Backwards-compatible private alias (used by the single-subject sibling search).
+def _names_are_pe_variants(a: str, b: str) -> bool:
+    return names_are_pe_variants(a, b, strict=False)
+
+
+class TopupPairError(RuntimeError):
+    """A reversed-PE candidate exists but fails the same-subject consistency checks."""
+
+
+_PAIR_META_FIELDS = ("EchoTime", "RepetitionTime", "SliceThickness",
+                     "MagneticFieldStrength")
+
+
+def _read_values(path: str):
+    """Read a whitespace-separated numeric file (bval/bvec); None on failure."""
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            vals = [float(x) for x in fh.read().split()]
+        return vals
+    except Exception:
+        return None
+
+
+def _protocol_stem(name: str) -> str:
+    """Protocol/SeriesDescription with PE tokens removed (case/separator-insensitive)."""
+    return _name_stem(str(name or ""))
+
+
+def pair_consistency_errors(primary: DwiiInput, second: DwiiInput) -> list:
+    """Check that a candidate reversed-PE series looks like the same acquisition.
+
+    Returns a list of human-readable problems (empty list = consistent). This is
+    a consistency check, not a subject-identity check: BIDS JSON sidecars from
+    dcm2niix usually carry no patient identifiers. Everything that can be
+    compared from the acquisition scheme/metadata/geometry is compared, and an
+    obvious mismatch blocks the pairing instead of silently mixing subjects.
+    """
+    errs = []
+    # ---- b-values: the two series must share the same diffusion scheme ----
+    b1 = _read_values(primary.bval)
+    b2 = _read_values(second.bval)
+    if b1 is not None and b2 is not None and len(b1) == len(b2):
+        bad = [i for i, (x, y) in enumerate(zip(b1, b2))
+               if abs(x - y) > 1.0]
+        if bad:
+            errs.append(t("misc.dwi.pair_bval_mismatch", len(bad)))
+    # ---- b-vector column count ----
+    try:
+        n1 = len(open(primary.bvec, encoding="utf-8", errors="ignore")
+                 .read().split())
+        n2 = len(open(second.bvec, encoding="utf-8", errors="ignore")
+                 .read().split())
+        if n1 != n2:
+            errs.append(t("misc.dwi.pair_bvec_mismatch", n1, n2))
+    except Exception:
+        pass
+    # ---- JSON acquisition metadata (only fields present in both) ----
+    i1, i2 = primary.json_info or {}, second.json_info or {}
+    for key in _PAIR_META_FIELDS:
+        v1, v2 = i1.get(key), i2.get(key)
+        if v1 is None or v2 is None:
+            continue
+        try:
+            f1, f2 = float(v1), float(v2)
+        except (TypeError, ValueError):
+            continue
+        if abs(f1 - f2) > max(1e-6, 1e-4 * max(abs(f1), abs(f2))):
+            errs.append(t("misc.dwi.pair_meta_mismatch", key, v1, v2))
+    for key in ("Manufacturer", "ManufacturersModelName"):
+        v1, v2 = i1.get(key), i2.get(key)
+        if v1 and v2 and str(v1).strip().lower() != str(v2).strip().lower():
+            errs.append(t("misc.dwi.pair_meta_mismatch", key, v1, v2))
+    p1 = _protocol_stem(i1.get("ProtocolName") or i1.get("SeriesDescription"))
+    p2 = _protocol_stem(i2.get("ProtocolName") or i2.get("SeriesDescription"))
+    if p1 and p2 and p1 != p2:
+        errs.append(t("misc.dwi.pair_protocol_mismatch",
+                      i1.get("ProtocolName") or i1.get("SeriesDescription"),
+                      i2.get("ProtocolName") or i2.get("SeriesDescription")))
+    # ---- NIfTI geometry (optional: nibabel may be unavailable in a bare env) ----
+    try:
+        import nibabel as nib  # noqa: F401
+        import numpy as _np
+        h1, h2 = nib.load(primary.nii), nib.load(second.nii)
+        if tuple(h1.shape[:3]) != tuple(h2.shape[:3]):
+            errs.append(t("misc.dwi.pair_geometry_mismatch",
+                          "shape", tuple(h1.shape[:3]), tuple(h2.shape[:3])))
+        else:
+            z1 = _np.asarray(h1.header.get_zooms()[:3], dtype=float)
+            z2 = _np.asarray(h2.header.get_zooms()[:3], dtype=float)
+            if not _np.allclose(z1, z2, rtol=1e-3, atol=1e-4):
+                errs.append(t("misc.dwi.pair_geometry_mismatch",
+                              "voxel size", tuple(z1), tuple(z2)))
+            elif not _np.allclose(h1.affine, h2.affine, atol=1e-2):
+                errs.append(t("misc.dwi.pair_geometry_mismatch",
+                              "affine", "different", "different"))
+    except ImportError:
+        pass
+    except Exception:
+        # Unreadable NIfTI header must not crash preflight; the FSL steps will
+        # report a real error later.
+        pass
+    return errs
 
 
 def _find_sibling_reversed(primary: DwiiInput, subject_dir: str) -> tuple:
@@ -474,6 +597,11 @@ def auto_attach_topup(primary: DwiiInput, subject_dir: str,
         second, sibling, why = _find_sibling_reversed(primary, subject_dir)
     if second is None:
         return False, why
+    errs = pair_consistency_errors(primary, second)
+    if errs:
+        where = sibling or os.path.basename(os.path.dirname(second.nii))
+        raise TopupPairError(t("misc.dwi.pair_inconsistent_where",
+                               where, "; ".join(errs)))
     attach_second(primary, second)
     if sibling:
         primary.notes.append(t("misc.dwi.sibling_used", sibling))

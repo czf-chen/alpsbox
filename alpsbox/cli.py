@@ -43,6 +43,7 @@ import time
 from . import __version__
 from . import i18n, text_cli  # noqa: F401  (text_cli registers the cli./misc. strings)
 from .batch import (collect_jobs, collect_results, preflight, run_batch,
+                    topup_layout_errors, write_preflight_report,
                     write_qc_report, write_summary)
 from .config import detect_env
 from .i18n import t
@@ -112,6 +113,12 @@ def cmd_dryrun(args) -> int:
     jobs = collect_jobs(args.root, args.out)
     print(t("cli.dryrun.found", len(jobs)))
     good, bad = preflight(jobs, topup_auto=getattr(args, "topup_auto", False))
+    layout_errors = (topup_layout_errors(good, bad)
+                     if getattr(args, "topup_auto", False) else [])
+    if getattr(args, "topup_auto", False) and layout_errors:
+        print(t("batch.topup.layout_header"))
+        for e in layout_errors:
+            print("  - " + e)
     print("=" * 68)
     print(t("cli.dryrun.header"))
     print("=" * 68)
@@ -199,9 +206,13 @@ def cmd_run(args) -> int:
             print(t("cli.err.topup_invalid", why))
             return 2
     elif getattr(args, "topup_auto", False):
-        from .inputs import auto_attach_topup
-        ok, why = auto_attach_topup(dwi, args.subject_dir,
-                                    search_siblings=True)
+        from .inputs import TopupPairError, auto_attach_topup
+        try:
+            ok, why = auto_attach_topup(dwi, args.subject_dir,
+                                        search_siblings=True)
+        except TopupPairError as e:
+            print(t("cli.err.topup_invalid", e))
+            return 2
         if not ok:
             print(t("misc.dwi.topup_off", why))
 
@@ -269,6 +280,10 @@ def cmd_batch(args) -> int:
     qc_path = os.path.join(args.out, "qc_report.txt")
 
     good, bad = preflight(jobs, topup_auto=getattr(args, "topup_auto", False))
+    layout_errors = (topup_layout_errors(good, bad)
+                     if getattr(args, "topup_auto", False) else [])
+    report = write_preflight_report(good, bad, args.out, layout_errors)
+    print(t("cli.batch.report", report))
     print(t("cli.batch.preflight", len(good), len(bad)))
     for j in bad:
         print(t("cli.batch.skip_row", j.subject,
@@ -277,6 +292,13 @@ def cmd_batch(args) -> int:
         for j in good:
             if j.topup:
                 print("  %-18s %s" % (j.subject, j.topup))
+    if layout_errors:
+        print()
+        print(t("batch.topup.layout_header"))
+        for e in layout_errors:
+            print("  - " + e)
+        print(t("cli.batch.blocked"))
+        return 2
 
     if not good:
         # Resume re-entry: every subject is already done -- do not fail, just
