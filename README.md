@@ -214,7 +214,7 @@ ALPSbox does **not** bundle FSL or MRtrix3 (FSL's licence is non-commercial and
 forbids redistribution). Install them first, then ALPSbox:
 
 ```bash
-git clone https://github.com/your-org/alpsbox.git
+git clone https://github.com/czf-chen/alpsbox.git
 cd alpsbox
 pip install -e .          # or: pip install -r requirements.txt
 alpsbox check             # verify FSL / MRtrix3 / dcm2niix

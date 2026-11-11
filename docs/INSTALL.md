@@ -48,7 +48,7 @@ conda activate mrtrix3
 ### 2.3 Install ALPSbox
 
 ```bash
-git clone https://github.com/your-org/alpsbox.git
+git clone https://github.com/czf-chen/alpsbox.git
 cd alpsbox
 pip install -e .            # installs the Python dependencies
 # or, without installing the package: pip install -r requirements.txt
@@ -83,7 +83,7 @@ roughly 5–10× slower than on a CUDA GPU; everything else works identically.
 ```bash
 # FSL: use the FSL installer from section 2.1
 brew install mrtrix 2>/dev/null        # MRtrix3 (recommended, optional)
-git clone https://github.com/your-org/alpsbox.git
+git clone https://github.com/czf-chen/alpsbox.git
 cd alpsbox && pip install -e . && alpsbox check && alpsbox gui
 ```
 

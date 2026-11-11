@@ -197,7 +197,7 @@ ALPSbox **不打包** FSL 与 MRtrix3（FSL 许可为非商业用途且禁止再
 请先装好它们，再安装 ALPSbox：
 
 ```bash
-git clone https://github.com/your-org/alpsbox.git
+git clone https://github.com/czf-chen/alpsbox.git
 cd alpsbox
 pip install -e .          # 或：pip install -r requirements.txt
 alpsbox check             # 检查 FSL / MRtrix3 / dcm2niix
