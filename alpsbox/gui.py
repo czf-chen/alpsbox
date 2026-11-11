@@ -68,6 +68,18 @@ class QueueWriter:
 
 class App(tk.Tk):
 
+    # Tk variables holding user input / advanced settings. They are recreated
+    # when the UI is rebuilt for a language switch, so their values are
+    # snapshotted and restored (otherwise a running/prepared job loses its
+    # input folder and settings).
+    _UI_STATE_VARS = (
+        "mode", "var_in", "var_out", "var_threads", "var_unring",
+        "var_regqc", "var_force", "var_workers", "roi_mode", "var_radius",
+        "var_custom", "var_bet_f", "var_reg_cost", "var_template",
+        "var_denoise", "var_topup", "var_topup_mode", "var_topup_second",
+        "var_topup_config",
+    )
+
     def __init__(self):
         super().__init__()
         self.title("ALPSbox  %s" % __version__)
@@ -125,9 +137,117 @@ class App(tk.Tk):
         i18n.set_lang(code)
         self._rebuild_ui()
 
+    def _snapshot_ui_state(self) -> dict:
+        """Capture log text, progress and input-variable state before a rebuild."""
+        st = {"log": "", "vars": {}, "page": self._active or "home",
+              "adv_open": False}
+        if hasattr(self, "txt"):
+            try:
+                st["log"] = self.txt.get("1.0", "end-1c")
+            except Exception:
+                pass
+        for name in self._UI_STATE_VARS:
+            var = getattr(self, name, None)
+            if var is None:
+                continue
+            try:
+                st["vars"][name] = var.get()
+            except Exception:
+                pass
+        for name in ("pb_total", "pb_cur"):
+            w = getattr(self, name, None)
+            if w is not None:
+                try:
+                    st[name] = float(w["value"])
+                except Exception:
+                    pass
+        for name in ("lbl_total", "lbl_cur", "lbl_elapsed"):
+            w = getattr(self, name, None)
+            if w is not None:
+                try:
+                    st[name] = str(w.cget("text"))
+                except Exception:
+                    pass
+        ad = getattr(self, "_adv_open", None)
+        if ad is not None:
+            try:
+                st["adv_open"] = bool(ad.get())
+            except Exception:
+                pass
+        return st
+
+    def _restore_ui_state(self, st: dict):
+        """Restore the snapshotted state after the rebuilt widgets exist."""
+        page = st.get("page") or "home"
+        if page in self._pages:
+            self._show_page(page)
+        for name, value in (st.get("vars") or {}).items():
+            var = getattr(self, name, None)
+            if var is None:
+                continue
+            try:
+                var.set(value)
+            except Exception:
+                pass
+        # Mode-dependent label and controls that are not driven by traces.
+        try:
+            self.lbl_in.configure(
+                text=t("proc.indir") if self.mode.get() == "single"
+                else t("proc.rootdir"))
+        except Exception:
+            pass
+        try:
+            self._on_roi()
+        except Exception:
+            pass
+        # Log history.
+        text = st.get("log") or ""
+        if text:
+            try:
+                if not text.endswith("\n"):
+                    text += "\n"
+                self.txt.configure(state="normal")
+                self.txt.insert("1.0", text)
+                self.txt.see("end")
+                self.txt.configure(state="disabled")
+            except Exception:
+                pass
+        # Progress bars / labels (the running worker keeps updating them).
+        for name in ("pb_total", "pb_cur"):
+            w = getattr(self, name, None)
+            if w is not None and name in st:
+                try:
+                    w["value"] = st[name]
+                except Exception:
+                    pass
+        for name in ("lbl_total", "lbl_cur", "lbl_elapsed"):
+            w = getattr(self, name, None)
+            if w is not None and name in st:
+                try:
+                    w.configure(text=st[name])
+                except Exception:
+                    pass
+        try:
+            self._update_clock()
+        except Exception:
+            pass
+        for fn in (self._update_summary, self._update_adv_summary,
+                   self._update_topup_ui):
+            try:
+                fn()
+            except Exception:
+                pass
+        if st.get("adv_open"):
+            try:
+                self._toggle_advanced()
+            except Exception:
+                pass
+
     def _rebuild_ui(self):
-        """Destroy and rebuild the whole UI, keeping the data and current page."""
-        keep_page = self._active or "home"
+        """Destroy and rebuild the whole UI, keeping the data, current page,
+        log history and (while a job is running) the progress/input state."""
+        state = self._snapshot_ui_state()
+        keep_page = state.get("page") or "home"
         # Drop references to the old widgets first: otherwise hasattr is true
         # while the widget is already destroyed, and rebuilding raises
         # "invalid command name"
@@ -157,7 +277,7 @@ class App(tk.Tk):
         self._build_header()
         self._build_statusbar()
         self._build_body()
-        self._show_page(keep_page if keep_page in self._pages else "home")
+        self._restore_ui_state(state)
         try:
             self._refresh_table()
             self._refresh_qc()

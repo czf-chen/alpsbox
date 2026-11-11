@@ -21,6 +21,10 @@ repository's history.
   starts.
 - Fixed: a cached single-PE result is no longer reused when the input now has a
   reversed-PE series; it is reprocessed with TOPUP automatically.
+- Fixed: switching the UI language while a job is running now keeps the log
+  history, progress bars, elapsed time and the prepared input/output/advanced
+  settings; previously the window was rebuilt empty and the running job looked
+  frozen until the next progress message.
 - New CLI options: `run --dwi2/--bval2/--bvec2/--json2` (explicit second set),
   `batch --topup-auto` (per-subject auto pairing) and `--topup-config` (use a
   TOPUP configuration other than FSL's automatically located b02b0.cnf).
