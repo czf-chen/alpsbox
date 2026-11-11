@@ -14,7 +14,7 @@ Until a paper is published, cite the software as:
 
 > ALPSbox contributors. *ALPSbox: one-click DTI-ALPS processing with quality
 > control and HTML reports.* Version 1.0.0. GitHub; 2026.
-> https://github.com/your-org/alpsbox
+> https://github.com/czf-chen/alpsbox
 
 A machine-readable `CITATION.cff` is provided in the repository root (GitHub
 shows a "Cite this repository" button). Once a journal paper is published,

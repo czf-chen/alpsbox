@@ -17,25 +17,21 @@ final GitHub/Zenodo actions and the two identifiers below are missing.
    git push -u origin main
    ```
 
-## 2. Fill the repository URL and (later) the Zenodo DOI
+## 2. Fill the Zenodo DOI
 
-Two placeholders exist: `https://github.com/your-org/alpsbox` (in `README.md`,
-`README.zh-CN.md`, `docs/INSTALL.md`, `docs/zh-CN/INSTALL.md`, `CITATION.cff`,
-`pyproject.toml`).
-
-Use the helper once the real URL (and, after step 4, the DOI) are known:
+The repository URL is already filled in `README.md`, `README.zh-CN.md`,
+`docs/INSTALL.md`, `docs/zh-CN/INSTALL.md`, `CITATION.cff` and
+`pyproject.toml`. After step 4 (Zenodo), fill the DOI with:
 
 ```bash
-python scripts/fill_release_urls.py \
-    --repo-url https://github.com/<owner>/alpsbox \
-    --doi 10.5281/zenodo.XXXXXXX
+python scripts/fill_release_urls.py --doi 10.5281/zenodo.XXXXXXX
 ```
 
-Run it with `--repo-url` only after step 1; run it again with `--doi` after step
-4. The script updates the URLs, `CITATION.cff` (adds the DOI identifier), the
-`README` files (DOI badge and a line in the "Citing ALPSbox" section) and
-`docs/CITATIONS.md` (software citation). It refuses to run when the replacement
-would be a no-op or when the same DOI is already present.
+The script updates `CITATION.cff` (adds the DOI identifier), the `README`
+files (DOI badge and a line in the "Citing ALPSbox" section) and
+`docs/CITATIONS.md` (software citation). It is idempotent: it reports an
+already-applied DOI instead of duplicating it. The same helper also supports
+`--repo-url` if the repository is ever moved.
 
 ## 3. GitHub repository settings
 
@@ -45,7 +41,7 @@ would be a no-op or when the same DOI is already present.
   `quality-control`.
 - Enable Issues; enable the "Cite this repository" button for `CITATION.cff`.
 - The CI workflow in `.github/workflows/ci.yml` runs automatically on push/PR
-  (byte-compile, release-integrity audit, CLI smoke tests on Python 3.9–3.12).
+  (byte-compile, release-integrity audit, CLI smoke tests on Python 3.10–3.12).
 
 ## 4. Zenodo DOI
 

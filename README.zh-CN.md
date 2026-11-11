@@ -186,7 +186,7 @@ TOPUP 畸变校正。
 
 | 组件 | 必需 | 说明 |
 |---|---|---|
-| Python 3.9+ | 是 | `pip install -e .` 会安装 NumPy、nibabel、Pillow、matplotlib |
+| Python 3.10+ | 是 | `pip install -e .` 会安装 NumPy、nibabel、Pillow、matplotlib |
 | FSL 6.0.3+ | 是 | 需要 `eddy`、`bet`、`dtifit`、`flirt`、`vecreg`、`fslroi`、`fslmaths`、`fslstats`、`fslval`、`fslcc`；CUDA `eddy` 可选 |
 | MRtrix3 | 推荐 | `mrdegibbs`（去 Gibbs 振铃）；缺失时跳过并给出警告 |
 | dcm2niix | 可选 | 只有 DICOM → NIfTI 转换时需要 |
@@ -309,7 +309,7 @@ alpsbox/
 ## 参与贡献
 
 欢迎提交 issue、代码以及文案/翻译修正，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-CI 会在 Python 3.9–3.12 上跑字节编译、发布完整性/引用审计与 CLI 冒烟测试；
+CI 会在 Python 3.10–3.12 上跑字节编译、发布完整性/引用审计与 CLI 冒烟测试；
 需要 FSL 的处理流程测试在本地运行。
 
 ---

@@ -7,8 +7,11 @@ Usage
     python scripts/fill_release_urls.py --doi 10.5281/zenodo.1234567
     python scripts/fill_release_urls.py --repo-url ... --doi ...
 
-Run from the repository root. The script is idempotent: missing placeholders
-are reported, and an already applied DOI is skipped.
+Run from the repository root. The script is idempotent: missing placeholders are
+reported, an unchanged URL is skipped, and an already applied DOI is skipped.
+`--repo-url` also works after the URL has been filled (for example if the
+repository is renamed or transferred): it replaces the current URL found in
+`pyproject.toml`/`CITATION.cff`.
 """
 from __future__ import annotations
 
@@ -18,6 +21,8 @@ import re
 import sys
 
 PLACEHOLDER = "https://github.com/your-org/alpsbox"
+CURRENT_URL_RE = re.compile(
+    r"https://github\.com/[^/\s\"']+/alpsbox")
 URL_FILES = [
     "README.md",
     "README.zh-CN.md",
@@ -38,25 +43,45 @@ def write(rel: str, text: str) -> None:
         fh.write(text)
 
 
+def current_repo_url() -> str:
+    """Return the repository URL currently recorded in the release files."""
+    for rel in ("pyproject.toml", "CITATION.cff"):
+        if not os.path.isfile(rel):
+            continue
+        for match in CURRENT_URL_RE.finditer(read(rel)):
+            return match.group(0)
+    return ""
+
+
 def fill_repo_url(repo_url: str) -> int:
     if not re.fullmatch(r"https://github\.com/[^/\s]+/alpsbox/?", repo_url):
         print("error: --repo-url must look like "
               "https://github.com/<owner>/alpsbox", file=sys.stderr)
         return 2
     repo_url = repo_url.rstrip("/")
+    old_urls = [PLACEHOLDER]
+    current = current_repo_url()
+    if current and current != repo_url:
+        old_urls.append(current)
+    elif current == repo_url:
+        print("nothing to do: repository URL is already %s" % repo_url)
+        return 0
     changed = 0
     for rel in URL_FILES:
         if not os.path.isfile(rel):
             print("warning: missing file", rel)
             continue
         text = read(rel)
-        n = text.count(PLACEHOLDER)
+        n = 0
+        for old in old_urls:
+            n += text.count(old)
+            text = text.replace(old, repo_url)
         if n:
-            write(rel, text.replace(PLACEHOLDER, repo_url))
+            write(rel, text)
             changed += 1
             print("updated %-28s (%d occurrence(s))" % (rel, n))
     if not changed:
-        print("nothing to do: placeholder not found (already filled?)")
+        print("nothing to do: no repository URL found to replace")
     return 0
 
 

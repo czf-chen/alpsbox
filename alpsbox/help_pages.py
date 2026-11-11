@@ -99,7 +99,7 @@ json 的文件名不需要和 nii 一致
 
     "install": """ALPSbox 需要什么
 
-必需的是 Python 3.9 以上和 FSL 6.0.3 以上。FSL 里必须有 eddy、bet、dtifit、
+必需的是 Python 3.10 以上和 FSL 6.0.3 以上。FSL 里必须有 eddy、bet、dtifit、
 flirt、vecreg、fslroi、fslmaths、fslstats、fslval 这几个命令。
 
 MRtrix3 用来去 Gibbs 振铃，dcm2niix 用来把 DICOM 转成 NIfTI，这两个是可选的，
@@ -379,7 +379,7 @@ files outside the subfolders are ignored.
 
     "install": """What ALPSbox needs
 
-Python 3.9+ and FSL 6.0.3+. FSL must provide eddy, bet, dtifit, flirt, vecreg,
+Python 3.10+ and FSL 6.0.3+. FSL must provide eddy, bet, dtifit, flirt, vecreg,
 fslroi, fslmaths, fslstats and fslval.
 
 MRtrix3 supplies Gibbs unringing and dcm2niix handles DICOM input. Both are

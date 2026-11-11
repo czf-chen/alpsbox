@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use ALPSbox in your research, please cite this software, the ALPS method paper, and the reference-implementation software and paper listed in references."
 title: "ALPSbox: one-click DTI-ALPS processing with quality control and HTML reports"
 type: software
-url: "https://github.com/czf-chen/alpsbox"   # TODO: replace after the public repository is created
+url: "https://github.com/czf-chen/alpsbox"
 authors:
   - name: "ALPSbox contributors"
 version: "1.0.0"

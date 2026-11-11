@@ -40,7 +40,7 @@ ALPSbox 的代码是纯 Python，跨平台。限制来自 FSL。
 
 | 组件 | 必需 | 用途 |
 |---|---|---|
-| Python 3.9+ | ✅ 必需 | 运行 ALPSbox；Python 依赖（NumPy、nibabel、Pillow、matplotlib）由 `pip install -e .` 安装 |
+| Python 3.10+ | ✅ 必需 | 运行 ALPSbox；Python 依赖（NumPy、nibabel、Pillow、matplotlib）由 `pip install -e .` 安装 |
 | **FSL 6.0.3+** | ✅ **必需** | eddy / bet / dtifit / flirt / vecreg / fslroi / fslmaths / fslstats / fslval |
 | mrdegibbs（MRtrix3） | 推荐 | 去 Gibbs 振铃。没有会自动跳过 |
 | dcm2niix | 可选 | DICOM → NIfTI。只处理现成 NIfTI 时不需要 |

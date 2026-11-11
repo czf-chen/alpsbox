@@ -23,7 +23,7 @@ tool focused (per-subject ALPS + quality control) are welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/your-org/alpsbox.git
+git clone https://github.com/czf-chen/alpsbox.git
 cd alpsbox
 python -m pip install -e .
 python tests/test_citations.py          # release/citation audit, no FSL needed

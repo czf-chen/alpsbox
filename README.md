@@ -203,7 +203,7 @@ Optional: a second DWI with the opposite phase-encoding direction
 
 | Component | Required | Notes |
 |---|---|---|
-| Python 3.9+ | yes | `pip install -e .` installs NumPy, nibabel, Pillow, matplotlib |
+| Python 3.10+ | yes | `pip install -e .` installs NumPy, nibabel, Pillow, matplotlib |
 | FSL 6.0.3+ | yes | `eddy`, `bet`, `dtifit`, `flirt`, `vecreg`, `fslroi`, `fslmaths`, `fslstats`, `fslval`, `fslcc`; CUDA `eddy` optional |
 | MRtrix3 | recommended | `mrdegibbs` (Gibbs unringing); skipped with a warning if absent |
 | dcm2niix | optional | only needed for DICOM → NIfTI conversion |
@@ -342,7 +342,7 @@ alpsbox/
 Contributions, bug reports and wording/translation fixes are welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md). The CI workflow runs a byte-compile
 check, the release-integrity/citation audit and CLI smoke tests on Python
-3.9–3.12; processing tests need FSL and are run locally.
+3.10–3.12; processing tests need FSL and are run locally.
 
 ---
 

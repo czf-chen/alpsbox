@@ -7,7 +7,7 @@ name = "alpsbox"
 version = "1.0.0"
 description = "One-click DTI-ALPS processing with quality control and HTML reports (GUI/CLI, built on FSL)"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "ALPSbox contributors" }]
 keywords = [
@@ -24,7 +24,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -42,7 +41,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/czf-chen/alpsbox"          # TODO: replace with the public URL
+Homepage = "https://github.com/czf-chen/alpsbox"
 Documentation = "https://github.com/czf-chen/alpsbox/tree/main/docs"
 Changelog = "https://github.com/czf-chen/alpsbox/blob/main/CHANGELOG.md"
 

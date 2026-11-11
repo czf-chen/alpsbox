@@ -12,7 +12,7 @@ The only real constraint is **FSL**, which must be installed separately
 
 | Component | Required | Purpose |
 |---|---|---|
-| Python 3.9+ | yes | runs ALPSbox; the Python dependencies (NumPy, nibabel, Pillow, matplotlib) are installed by `pip install -e .` |
+| Python 3.10+ | yes | runs ALPSbox; the Python dependencies (NumPy, nibabel, Pillow, matplotlib) are installed by `pip install -e .` |
 | FSL 6.0.3+ | yes | eddy, bet, dtifit, flirt, vecreg, fslroi, fslmaths, fslstats, fslval |
 | MRtrix3 | recommended | Gibbs unringing (`mrdegibbs`) |
 | dcm2niix | optional | DICOM → NIfTI conversion |

@@ -11,7 +11,7 @@
 
 > ALPSbox contributors. *ALPSbox: one-click DTI-ALPS processing with quality
 > control and HTML reports*. Version 1.0.0. GitHub; 2026.
-> https://github.com/&lt;your-org&gt;/alpsbox
+> https://github.com/czf-chen/alpsbox
 
 仓库内提供了机器可读的 `CITATION.cff`（GitHub 会显示 "Cite this repository"）。
 **正式发表后请以论文引用为准。**
