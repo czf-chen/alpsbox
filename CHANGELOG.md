@@ -4,6 +4,16 @@ All notable public changes are documented here. The project starts its public
 version history at v1.0.0; internal research iterations are not part of this
 repository's history.
 
+## [Unreleased]
+
+### Documentation and platform support
+
+- Quick start, installation guide, FAQ and in-app help now cover Linux and
+  macOS as first-class platforms (native FSL, `bash run_gui.sh`, Tk/tkinter
+  notes) instead of describing only the Windows/WSL path.
+- `run_gui.sh` is marked executable in the repository, and the CLI's
+  GUI-launch-failure hint now distinguishes WSL from native Linux/macOS.
+
 ## [1.0.0] — 2026-11-11
 
 First public release.

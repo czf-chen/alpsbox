@@ -94,15 +94,22 @@ ALPSbox 从扩散 MRI 计算沿血管周围间隙的扩散张量分析（DTI-ALP
 
 ### 图形界面（推荐）
 
-1. 启动：Windows 双击 `ALPSbox-GUI.bat`（需要装好 FSL 的 WSL2，见
-   [docs/zh-CN/INSTALL.md](docs/zh-CN/INSTALL.md) §4）；或在装有 FSL 的
-   WSL/Linux 里运行 `alpsbox gui`。
-2. 首页默认英文；如需中文，在首页选择 简体中文（仅本次会话）。
-3. 选输入文件夹（单个被试，或每个子文件夹一个被试的队列根目录），选输出目录，
-   点 **开始**。
-4. 查看结果：ALPS 值、质控等级、HTML 报告。
+ALPSbox 在 Linux、macOS 上原生运行，Windows 通过 WSL2 运行；三者的 Python
+包、命令行和 GUI 完全相同。请先装好 FSL 和 ALPSbox（见下文“安装”一节；
+各系统的详细步骤见 [docs/zh-CN/INSTALL.md](docs/zh-CN/INSTALL.md)）。
 
-已完成的被试会自动跳过，中断后可以接着跑。
+| 系统 | 启动 GUI 的方式 |
+|---|---|
+| Windows | 双击 `ALPSbox-GUI.bat`（WSL2 + WSLg，FSL 装在 WSL 里） |
+| Linux | 在 ALPSbox 目录运行 `bash run_gui.sh`，或 `alpsbox gui` |
+| macOS | 在 ALPSbox 目录运行 `bash run_gui.sh`，或 `alpsbox gui` |
+
+首页默认英文；如需中文，在首页选择 简体中文（仅本次会话）。然后选输入文件夹
+（单个被试，或每个子文件夹一个被试的队列根目录）、选输出目录，点 **开始**，
+查看 ALPS 值、质控等级和 HTML 报告。
+
+已完成的被试会自动跳过，中断后可以接着跑。macOS 没有 CUDA 版 `eddy`，
+只能用 CPU（比 CUDA 机器慢约 5–10 倍）；Linux 装了 CUDA `eddy` 会自动使用。
 
 ### 命令行
 
@@ -186,13 +193,17 @@ TOPUP 畸变校正。
 
 **系统要求**
 
+ALPSbox 在 Linux、macOS（含 Apple Silicon）上原生运行，Windows 通过 WSL2
+运行；Windows 原生不支持，因为 FSL 没有 Windows 版本。
+
 | 组件 | 必需 | 说明 |
 |---|---|---|
+| Linux / macOS / WSL2 | 是 | Linux、macOS 原生运行；Windows 走 WSL2（不支持原生 Windows） |
 | Python 3.10+ | 是 | `pip install -e .` 会安装 NumPy、nibabel、Pillow、matplotlib |
 | FSL 6.0.3+ | 是 | 需要 `eddy`、`bet`、`dtifit`、`flirt`、`vecreg`、`fslroi`、`fslmaths`、`fslstats`、`fslval`、`fslcc`；CUDA `eddy` 可选 |
 | MRtrix3 | 推荐 | `mrdegibbs`（去 Gibbs 振铃）；缺失时跳过并给出警告 |
 | dcm2niix | 可选 | 只有 DICOM → NIfTI 转换时需要 |
-| tkinter | GUI 需要 | Windows/macOS 的 Python 自带；Linux `sudo apt install python3-tk` |
+| tkinter | GUI 需要 | python.org 的 Windows/macOS 安装包自带；Homebrew 的 Python 需另装匹配的 `python-tk`；Linux `sudo apt install python3-tk` |
 | X / WSLg | GUI 需要 | Windows 11 自带 WSLg |
 
 ALPSbox **不打包** FSL 与 MRtrix3（FSL 许可为非商业用途且禁止再分发）。

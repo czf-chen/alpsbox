@@ -112,13 +112,16 @@ FSL 的许可证只允许非商业使用，而且明确禁止再分发。所以 
 
 在一台新机器上装
 
-第一步，装 WSL。Windows 下用管理员权限打开 PowerShell，执行：
+平台：Windows 走 WSL2（下面的第一步）；Linux 和 macOS 原生安装，跳过第一步。
+macOS 支持 Intel 与 Apple Silicon。
+
+第一步，装 WSL（仅 Windows）。用管理员权限打开 PowerShell，执行：
 
     wsl --install -d Ubuntu
 
 装完重启，设好用户名和密码。用 wsl -l -v 确认能看到 Ubuntu。
 
-第二步，装 FSL。在 WSL 里执行：
+第二步，装 FSL。在 WSL / Linux 终端里执行：
 
     cd ~
     wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
@@ -133,7 +136,15 @@ FSL 的许可证只允许非商业使用，而且明确禁止再分发。所以 
 然后 source ~/.bashrc，用 fsl-config --version 和 which eddy bet dtifit flirt vecreg
 确认装好了。
 
-第三步，装 MRtrix3。推荐用 conda，先装 miniforge 再建环境：
+macOS：不需要 WSL，用同一条 FSL 项目安装命令：
+curl -Ls https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/getfsl.sh | sh -s
+装完关闭 Terminal 再重开。若仍找不到 fsl-config，把下面一行加到 ~/.zshrc：
+. $FSLDIR/etc/fslconf/fsl.sh
+Linux/macOS 的 GUI 还需要 tkinter：Linux 装 python3-tk；macOS 用 python.org 的
+Python（自带 Tk）或装匹配的 python-tk。
+
+第三步，装 MRtrix3（可选）。Linux 推荐用 conda，先装 miniforge 再建环境；
+macOS 的 conda 渠道没有现成包，用 mrtrix.org 的 macOS 预编译包，装不上可跳过：
 
     conda create -n mrtrix -c conda-forge -c bioconda --channel-priority flexible mrtrix3=3.0.8 -y
     export PATH=$HOME/miniforge3/envs/mrtrix/bin:$PATH
@@ -147,7 +158,8 @@ FSL 的许可证只允许非商业使用，而且明确禁止再分发。所以 
 
 用 --no-build-isolation 可以避免联网下载构建依赖。
 
-第五步，启动。命令行输入 alpsbox gui，或者 Windows 下双击 ALPSbox-GUI.bat。
+第五步，启动。Linux/macOS 在仓库目录运行 bash run_gui.sh 或 alpsbox gui；
+Windows 双击 ALPSbox-GUI.bat。
 
 依赖不满足时怎么办
 
@@ -178,6 +190,9 @@ FSL 或其中任何一个必需命令缺失，程序无法处理。
 
 需要 WSLg，Windows 11 自带。用 echo $DISPLAY 检查，应该有类似 :0 的值。
 如果为空，run_gui.sh 里会自动补成 :0，仍然不行就是 WSLg 没启用。
+
+Linux 原生的 GUI 需要正常的 X/Wayland 图形会话（echo $DISPLAY 应有值）。
+macOS 先确认 python3 -c "import tkinter" 能通过；失败时看 ~/.alpsbox/gui.log。
 
 报错未找到 FSL
 
@@ -393,13 +408,16 @@ arrangement DPABI has with MATLAB and SPM.
 
 Installing on a new machine
 
-Step 1, install WSL. In an administrator PowerShell on Windows:
+Platforms: Windows runs through WSL2 (step 1 below); Linux and macOS install
+natively and skip step 1. macOS supports both Intel and Apple Silicon.
+
+Step 1, install WSL (Windows only). In an administrator PowerShell:
 
     wsl --install -d Ubuntu
 
 Reboot, set a username and password, and confirm with wsl -l -v.
 
-Step 2, install FSL. Inside WSL:
+Step 2, install FSL. In a WSL / Linux terminal:
 
     cd ~
     wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
@@ -414,7 +432,16 @@ Then add the environment to ~/.bashrc:
 Run source ~/.bashrc and verify with fsl-config --version and
 which eddy bet dtifit flirt vecreg.
 
-Step 3, install MRtrix3. conda is the easiest route:
+macOS: no WSL is needed; the same FSL installer works:
+curl -Ls https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/getfsl.sh | sh -s
+Close and reopen Terminal afterwards. If fsl-config is still missing, add
+. $FSLDIR/etc/fslconf/fsl.sh to ~/.zshrc. The GUI on Linux/macOS also needs
+tkinter: on Linux install python3-tk; on macOS use the python.org Python (Tk
+included) or the matching python-tk.
+
+Step 3, install MRtrix3 (optional). On Linux conda is the easiest route;
+macOS has no conda package in these channels, so use the macOS binaries from
+mrtrix.org (or skip it):
 
     conda create -n mrtrix -c conda-forge -c bioconda --channel-priority flexible mrtrix3=3.0.8 -y
     export PATH=$HOME/miniforge3/envs/mrtrix/bin:$PATH
@@ -428,8 +455,8 @@ Step 4, install ALPSbox. Copy the alpsbox folder over, then:
 
 --no-build-isolation avoids downloading build dependencies.
 
-Step 5, launch. Run alpsbox gui on the command line, or double-click
-ALPSbox-GUI.bat on Windows.
+Step 5, launch. On Linux/macOS run bash run_gui.sh or alpsbox gui from the
+ALPSbox folder; on Windows double-click ALPSbox-GUI.bat.
 
 When dependencies are missing
 
@@ -462,6 +489,10 @@ The window never appears from the command line
 WSLg is required; Windows 11 ships it. Check echo $DISPLAY, which should show
 something like :0. If it is empty, run_gui.sh sets it to :0 automatically; if that
 still fails, WSLg is not enabled.
+
+On native Linux the GUI needs a graphical X/Wayland session (echo $DISPLAY must
+print a value). On macOS first check python3 -c "import tkinter"; if it fails,
+the launch log is ~/.alpsbox/gui.log.
 
 "FSL not found"
 

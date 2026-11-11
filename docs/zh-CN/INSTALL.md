@@ -20,11 +20,11 @@ ALPSbox 的代码是纯 Python，跨平台。限制来自 FSL。
 |---|---|---|
 | Linux | 可以 | 首选 |
 | WSL2（Windows） | 可以 | 需要 WSLg 显示 GUI |
-| macOS | 可以 | 没有 CUDA，eddy 只能 CPU，慢 5–10 倍 |
+| macOS | 可以 | 原生运行，Intel 与 Apple Silicon 都支持；没有 CUDA，eddy 只能 CPU（慢 5–10 倍） |
 | Windows 原生 | 不行 | FSL 没有 Windows 版本，必须走 WSL |
 
 所以下面的步骤在 Windows 上是"先装 WSL，再在 WSL 里装 FSL"；
-在 macOS 上跳过第 1 步，其余相同。
+Linux 和 macOS 跳过第 1 步，直接装 FSL（macOS 见第 2 步里的 macOS 小节）。
 
 ---
 
@@ -34,6 +34,7 @@ ALPSbox 的代码是纯 Python，跨平台。限制来自 FSL。
 |---|---|
 | 全新机器，什么都没有 | 从第 1 步开始 |
 | 已有 Ubuntu / WSL | 跳到第 2 步（装 FSL） |
+| 已有 macOS 机器 | 看第 2 步的 macOS 小节（跳过 WSL） |
 | 已有 FSL 6.0.3+ | 跳到第 4 步（装 ALPSbox） |
 
 **ALPSbox 需要什么**
@@ -80,7 +81,7 @@ wsl -l -v
 
 ## 2. 装 FSL
 
-在 WSL 里：
+在 WSL / Linux 终端里：
 
 ```bash
 # 下载FSL 提供的安装脚本
@@ -123,6 +124,30 @@ which eddy bet dtifit flirt vecreg fslroi fslmaths fslstats fslval
 | 缺 atlas | 只装了核心 | `$FSLDIR/bin/fsl_install_atlases` |
 | 提示缺 libtiff 等 | 系统依赖缺失 | `sudo apt install -y libtiff5 libquadmath0 dc` |
 
+### macOS（原生安装，Intel / Apple Silicon）
+
+macOS 不需要 WSL。FSL 项目提供的安装脚本支持 Intel 与 Apple Silicon：
+
+```bash
+curl -Ls https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/getfsl.sh | sh -s
+# 看到 "FSL successfully installed" 后关闭 Terminal 再重新打开
+fsl-config --version        # 应 >= 6.0.3
+```
+
+若重开后仍提示找不到 `fsl-config`，把下面一行加到 `~/.zshrc`（FSLDIR 默认
+是 `~/fsl`），再开一个新终端：
+
+```bash
+. $FSLDIR/etc/fslconf/fsl.sh
+```
+
+macOS 的 GUI 依赖 tkinter：python.org 的 Python 自带；Homebrew 的 Python
+不带，需要安装与其版本匹配的 `python-tk`。可以先检查：
+
+```bash
+python3 -c "import tkinter; print(tkinter.TkVersion)"
+```
+
 ---
 
 ## 3. 装 MRtrix3（强烈推荐）
@@ -132,7 +157,7 @@ which eddy bet dtifit flirt vecreg fslroi fslmaths fslstats fslval
 推荐用 conda：
 
 ```bash
-# 如果没装 conda，先装 miniforge
+# 如果没装 conda，先装 miniforge（Linux；macOS 用 Miniforge3-MacOSX-arm64.sh）
 wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p ~/miniforge3
 ~/miniforge3/bin/conda init bash && source ~/.bashrc
@@ -149,6 +174,10 @@ source ~/.bashrc
 ```bash
 which mrdegibbs
 ```
+
+macOS 补充：以上 conda 包只有 linux-64 / linux-aarch64 版本，macOS 上请用
+<https://www.mrtrix.org/download/> 的 macOS 预编译包（或从源码编译）。MRtrix3
+是可选项，装不上会自动跳过 Gibbs 去振铃，不影响 ALPS 数值。
 
 ---
 
@@ -200,6 +229,16 @@ alpsbox check          # 逐项检查 FSL / MRtrix3 / dcm2niix
 
 ## 5. 启动
 
+### Linux / macOS（原生终端）
+
+在仓库目录运行（会自动找 FSL；macOS 自动跳过 DISPLAY 设置）：
+
+```bash
+bash run_gui.sh
+# 或
+alpsbox gui
+```
+
 ### Windows 双击
 
 ```
@@ -221,9 +260,8 @@ alpsbox/ALPSbox-GUI.bat
 
 ### 命令行
 
-```bash
-alpsbox gui
-```
+任何系统都可以运行 `alpsbox gui`；处理命令（`alpsbox check` / `run` / `batch`
+等）在三个系统上完全相同。
 
 工具默认英文；首页可切换为简体中文（作用于本次会话的界面、处理日志、质控文字
 和 HTML 报告）。命令行给任意子命令加 `--lang en` 或 `--lang zh_CN` 可切换
@@ -292,7 +330,7 @@ alpsbox run /path/to/sub_001 --out ./results```
 - [ ] `alpsbox --version` 输出 1.0.0
 - [ ] `alpsbox check` 最后显示"环境可用"
 - [ ] `echo $DISPLAY` 有值（要 GUI 的话）
-- [ ] 双击 `ALPSbox-GUI.bat` 能出窗口（Windows）
+- [ ] 双击 `ALPSbox-GUI.bat`（Windows）或运行 `bash run_gui.sh`（Linux/macOS）能出窗口
 - [ ] GUI 里「质控」页能打开、「ROI 图解」页能看到脑图
 
 全部打勾就可以开始跑了。

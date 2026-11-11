@@ -99,7 +99,7 @@ run group analyses downstream.
 
 ---
 
-## GUI and Windows launcher
+## GUI and launchers
 
 **Double-clicking `ALPSbox-GUI.bat` shows "[ERROR] Could not resolve this
 folder inside WSL" / "Could not find an accessible WSL distribution"**
@@ -129,7 +129,15 @@ generated HTML reports follow it. On the command line, add `--lang en` or
 
 **The GUI window does not appear (WSL)**
 WSLg is required (Windows 11). Check `echo $DISPLAY`; if empty, use the CLI or
-upgrade WSL. On Linux a normal X/Wayland session is required.
+upgrade WSL.
+
+**The GUI does not start on Linux or macOS**
+On Linux a graphical session is required: `echo $DISPLAY` must print a value
+(X11, or Wayland with XWayland). On macOS check that Python has Tk with
+`python3 -c "import tkinter; print(tkinter.TkVersion)"`; the python.org installer
+includes Tk, Homebrew Python needs the matching `python-tk` formula. When it
+fails, `bash run_gui.sh` prints the log path and the FSL/Python it detected, and
+the full launch log is `~/.alpsbox/gui.log`.
 
 **The batch takes a long time on my laptop**
 This is GPU/CPU-bound, not a bug. 66-volume data take roughly 10–15 min per

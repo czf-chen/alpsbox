@@ -414,6 +414,17 @@ def cmd_report(args) -> int:
     return 0
 
 
+def _in_wsl() -> bool:
+    """Return True when running inside Windows Subsystem for Linux."""
+    if os.environ.get("WSL_DISTRO_NAME"):
+        return True
+    try:
+        with open("/proc/version", encoding="utf-8", errors="ignore") as fh:
+            return "microsoft" in fh.read().lower()
+    except OSError:
+        return False
+
+
 def cmd_gui(args) -> int:
     """Launch the graphical interface."""
     try:
@@ -427,7 +438,10 @@ def cmd_gui(args) -> int:
         gui_main(None if code in (None, "auto") else code)
     except Exception as e:
         print(t("cli.err.gui_start", e))
-        print(t("cli.gui.wsl_hint"))
+        if _in_wsl():
+            print(t("cli.gui.wsl_hint"))
+        else:
+            print(t("cli.gui.display_hint"))
         return 1
     return 0
 

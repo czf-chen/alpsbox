@@ -106,16 +106,26 @@ More views (process page, QC table) are in
 
 ### GUI (recommended)
 
-1. Start the GUI: double-click `ALPSbox-GUI.bat` on Windows (requires WSL2
-   with FSL installed — see [docs/INSTALL.md](docs/INSTALL.md) §4), or run
-   `alpsbox gui` inside WSL/Linux with FSL available.
-2. The home page opens in English (the default); choose 简体中文 there if you
-   prefer Chinese for this session.
-3. Pick the input folder (one subject, or a cohort root where each subfolder is
-   one subject), pick an output folder, press **Start**.
-4. Review the results: ALPS values, QC grades and the HTML report.
+ALPSbox runs on Linux and macOS natively and on Windows through WSL2; the Python
+package, the CLI and the GUI are identical on all three. Install FSL and ALPSbox
+first (see [Installation](#installation); platform-specific steps are in
+[docs/INSTALL.md](docs/INSTALL.md)).
+
+| System | Start the GUI |
+|---|---|
+| Windows | double-click `ALPSbox-GUI.bat` (WSL2 + WSLg, with FSL installed inside WSL) |
+| Linux | `bash run_gui.sh` in the ALPSbox folder, or `alpsbox gui` |
+| macOS | `bash run_gui.sh` in the ALPSbox folder, or `alpsbox gui` |
+
+The home page opens in English (the default); choose 简体中文 there if you prefer
+Chinese for this session. Then pick the input folder (one subject, or a cohort
+root where each subfolder is one subject), pick an output folder, press
+**Start**, and review the ALPS values, QC grades and HTML report.
 
 Finished subjects are skipped automatically, so interrupted runs can be resumed.
+On macOS there is no CUDA build of `eddy`, so it runs on the CPU (roughly 5–10×
+slower than a CUDA Linux machine); on Linux a CUDA `eddy` is used automatically
+when one is installed.
 
 ### Command line
 
@@ -203,13 +213,18 @@ Optional: a second DWI with the opposite phase-encoding direction
 
 **System requirements**
 
+ALPSbox runs natively on Linux and macOS (including Apple Silicon) and inside
+WSL2 on Windows; native Windows is not supported because FSL has no Windows
+build.
+
 | Component | Required | Notes |
 |---|---|---|
+| Linux / macOS / WSL2 | yes | native Linux and macOS; Windows via WSL2 (native Windows is not supported) |
 | Python 3.10+ | yes | `pip install -e .` installs NumPy, nibabel, Pillow, matplotlib |
 | FSL 6.0.3+ | yes | `eddy`, `bet`, `dtifit`, `flirt`, `vecreg`, `fslroi`, `fslmaths`, `fslstats`, `fslval`, `fslcc`; CUDA `eddy` optional |
 | MRtrix3 | recommended | `mrdegibbs` (Gibbs unringing); skipped with a warning if absent |
 | dcm2niix | optional | only needed for DICOM → NIfTI conversion |
-| tkinter | for the GUI | part of Python on Windows/macOS; on Linux `sudo apt install python3-tk` |
+| tkinter | for the GUI | included with python.org installers on Windows/macOS; Homebrew Python needs the matching `python-tk`; on Linux `sudo apt install python3-tk` |
 | X / WSLg | for the GUI | WSLg is included in Windows 11 |
 
 ALPSbox does **not** bundle FSL or MRtrix3 (FSL's licence is non-commercial and

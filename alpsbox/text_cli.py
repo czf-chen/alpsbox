@@ -339,6 +339,13 @@ STRINGS = {
                                   "（echo $DISPLAY 应有值）。",
                          "en": "        Under WSL, make sure WSLg works "
                                "(echo $DISPLAY should print a value)."},
+    "cli.gui.display_hint": {"zh_CN": "        需要图形桌面会话：Linux 请确认 "
+                                     "DISPLAY 有值（X11 或 Wayland）；macOS 请"
+                                     "确认 python3 -c 'import tkinter' 能通过。",
+                            "en": "        A desktop session is required: on "
+                                  "Linux check that DISPLAY is set (X11 or "
+                                  "Wayland); on macOS check python3 -c "
+                                  "'import tkinter'."},
 
     # =================================================================
     # config.py -- environment checks (shared by the GUI and CLI check)

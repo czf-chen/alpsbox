@@ -60,6 +60,8 @@ alpsbox check
 ### 2.4 Start the GUI
 
 ```bash
+bash run_gui.sh        # same launcher as on macOS; auto-detects FSL and MRtrix3
+# or
 alpsbox gui
 ```
 
@@ -69,23 +71,74 @@ command line, `--lang en` / `--lang zh_CN` switches the language for that run.
 
 WSLg (Windows 11) is required for the GUI on Windows; on Linux a normal X/Wayland
 session is enough. Windows users can instead double-click `ALPSbox-GUI.bat`.
+`run_gui.sh` is the no-hard-coded-paths launcher for Linux and macOS; the macOS
+steps are in section 3.
 
 ---
 
-## 3. macOS
+## 3. macOS (Intel and Apple Silicon)
 
-Install FSL with the FSL project's own installer (the `fslinstaller.py` script
-from the FSL download page, see section 2.1); FSL is not distributed with
-ALPSbox. MRtrix3 is available through Homebrew or conda. The GUI runs natively
-on macOS. CUDA acceleration is not available, so `eddy` runs on CPU and is
-roughly 5–10× slower than on a CUDA GPU; everything else works identically.
+No WSL is needed: FSL, ALPSbox and the GUI run natively on macOS, on both Intel
+and Apple Silicon Macs.
+
+### 3.1 Install FSL
+
+Use FSL's own installer (non-commercial licence; FSL is not distributed with
+ALPSbox):
 
 ```bash
-# FSL: use the FSL installer from section 2.1
-brew install mrtrix 2>/dev/null        # MRtrix3 (recommended, optional)
-git clone https://github.com/czf-chen/alpsbox.git
-cd alpsbox && pip install -e . && alpsbox check && alpsbox gui
+curl -Ls https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/getfsl.sh | sh -s
+# wait for "FSL successfully installed", then close and reopen Terminal
+fsl-config --version          # should print 6.0.3 or newer
 ```
+
+If `fsl-config` is still not found after reopening Terminal, add this line to
+`~/.zshrc` (FSLDIR defaults to `~/fsl`) and open a new terminal:
+
+```bash
+. $FSLDIR/etc/fslconf/fsl.sh
+```
+
+### 3.2 Python and tkinter
+
+ALPSbox needs Python 3.10+ and, for the GUI, Tk. The python.org macOS installer
+includes Tk; Homebrew Python does not, so install the matching `python-tk`
+formula in that case. Verify with:
+
+```bash
+python3 --version
+python3 -c "import tkinter; print(tkinter.TkVersion)"
+```
+
+### 3.3 Install ALPSbox
+
+```bash
+git clone https://github.com/czf-chen/alpsbox.git
+cd alpsbox
+python3 -m pip install -e .
+alpsbox check
+```
+
+### 3.4 Start the GUI / CLI
+
+```bash
+bash run_gui.sh              # auto-detects FSL/MRtrix3; macOS needs no DISPLAY
+# or
+alpsbox gui
+```
+
+The CLI commands are identical to Linux (section 2.3).
+
+### 3.5 Optional tools and performance
+
+- MRtrix3 (`mrdegibbs`) is optional. The conda channels used in section 2.2 do
+  not currently ship macOS builds; use the macOS binaries from
+  <https://www.mrtrix.org/download/> (or build from source). If it is missing,
+  unringing is skipped with a warning and the ALPS calculation is unaffected.
+- `dcm2niix` is optional (`brew install dcm2niix`); it is only needed for DICOM
+  input.
+- There is no CUDA `eddy` on macOS, so `eddy` runs on the CPU and is roughly
+  5–10× slower than a CUDA build. Everything else works identically.
 
 ---
 

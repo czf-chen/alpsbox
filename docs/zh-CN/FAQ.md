@@ -38,7 +38,7 @@ alpsbox check
 - **能不能做组统计**：不能——本工具只输出每个被试的数值与质控，组统计请用导出的
   CSV/JSON 在下游软件完成。
 
-## 图形界面与 Windows 启动器
+## 图形界面与启动器
 
 - **双击 `ALPSbox-GUI.bat` 报 "Could not resolve this folder inside WSL" /
   "Could not find an accessible WSL distribution"**：说明 Windows 没能把启动器
@@ -59,4 +59,10 @@ alpsbox check
   处理日志、质控文字和 HTML 报告。命令行给任意子命令加 `--lang en` 或
   `--lang zh_CN` 即可（默认英文）。
 - **窗口不出现（WSL）**：需要 WSLg（Windows 11），`echo $DISPLAY` 应有值。
+- **Linux/macOS 上 GUI 打不开**：Linux 需要图形会话，`echo $DISPLAY` 应有值
+  （X11 或 Wayland 的 XWayland）；macOS 先确认
+  `python3 -c "import tkinter; print(tkinter.TkVersion)"` 能通过（python.org 的
+  Python 自带 Tk，Homebrew 版需另装匹配的 `python-tk`）。失败时
+  `bash run_gui.sh` 会打印日志路径和探测到的 FSL/Python；完整日志在
+  `~/.alpsbox/gui.log`。
 - **跑得慢**：66 体积数据每例约 10–15 分钟属正常，受 CPU/GPU 限制。
