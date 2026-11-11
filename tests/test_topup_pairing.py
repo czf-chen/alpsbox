@@ -234,6 +234,122 @@ def test_pipeline_topup_step():
               "no reversed-PE input -> TOPUP off")
 
 
+def test_sibling_pairing():
+    """AP/PA exports often sit in sibling folders; single mode searches them."""
+    print("== sibling-folder auto pairing (single-subject exports) ==")
+    with tempfile.TemporaryDirectory() as root:
+        ap = os.path.join(root, "dMRI_AP_1.5mm")
+        pa = os.path.join(root, "dMRI_PA_1.5mm")
+        make_set(ap, "ap", "j-")
+        make_set(pa, "pa", "j")
+        primary = discover(ap)
+        ok, why = auto_attach_topup(primary, ap)  # default: no sibling search
+        check(not ok, "sibling search is off by default (batch mode)")
+        primary = discover(ap)
+        ok, why = auto_attach_topup(primary, ap, search_siblings=True)
+        check(ok, "single-subject mode finds the reversed series in a sibling")
+        check(primary.has_dual_pe, "paired primary has dual-PE input")
+        check(any("sibling" in n for n in primary.notes),
+              "a note records that the sibling folder was used")
+        overlap = discover_all(pa)
+        check(any(os.path.abspath(c.nii) == os.path.abspath(primary.nii2)
+                  for c in overlap), "the attached series comes from the PA folder")
+
+    # Too many subfolders -> refuse to guess (cohort-root safety)
+    with tempfile.TemporaryDirectory() as root:
+        ap = os.path.join(root, "dMRI_AP")
+        pa = os.path.join(root, "dMRI_PA")
+        make_set(ap, "ap", "j-")
+        make_set(pa, "pa", "j")
+        for i in range(4):
+            make_set(os.path.join(root, "other_%d" % i), "dwi", "j-")
+        primary = discover(ap)
+        ok, why = auto_attach_topup(primary, ap, search_siblings=True)
+        check(not ok, "large parent folders are not searched (wrong-subject risk)")
+        check("subfolders" in why or "子文件夹" in why,
+              "the reason explains why the sibling search was skipped")
+
+    # Unrelated folder names are not paired even with an opposite PE direction
+    with tempfile.TemporaryDirectory() as root:
+        d1 = os.path.join(root, "series_01")
+        d2 = os.path.join(root, "series_02")
+        make_set(d1, "dwi", "j-")
+        make_set(d2, "dwi", "j")
+        ok, why = auto_attach_topup(discover(d1), d1, search_siblings=True)
+        check(not ok, "unrelated folder names are not auto-paired")
+
+
+def test_topup_aware_resume():
+    """A cached single-PE result must not hide a now-available TOPUP input."""
+    print("== TOPUP-aware resume ==")
+    import alpsbox.pipeline as pm
+    from types import SimpleNamespace
+
+    class DummyRunner:
+        def __init__(self, *a, **kw):
+            pass
+
+        def close(self):
+            pass
+
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "out")
+        os.makedirs(out)
+        nii2 = os.path.join(d, "PA.nii.gz")
+        open(nii2, "wb").close()
+        dwi = DwiiInput(nii=nii2, bval="b", bvec="v", nii2=nii2,
+                        bval2="b2", bvec2="v2",
+                        json_info={"PhaseEncodingDirection": "j-"},
+                        json_info2={"PhaseEncodingDirection": "j"})
+        pipe = AlspPipeline.__new__(AlspPipeline)
+        pipe.opts = PipelineOptions(unring=False)
+        pipe.env = SimpleNamespace(fsl_dir="", mrtrix_has_dwidenoise=False,
+                                   mrtrix_has_mrdegibbs=False)
+        pipe.sub_env = None
+        calls = []
+        pipe._run_body = (lambda runner, subject, dwi, out_dir, res:
+                          (calls.append(1), setattr(res, "ok", True))[0])
+        with open(os.path.join(out, "alps_result.json"), "w",
+                  encoding="utf-8") as fh:
+            json.dump({"subject": "s1", "ok": True, "method": "eddy_gpu",
+                       "topup": "off (no reversed-PE input)",
+                       "alps_L": "1.0"}, fh)
+        old_runner = pm.fslmod.Runner
+        pm.fslmod.Runner = DummyRunner
+        try:
+            pipe.run("s1", dwi, out)
+        finally:
+            pm.fslmod.Runner = old_runner
+        check(calls == [1], "cached single-PE result is reprocessed when TOPUP input appears")
+
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "out")
+        os.makedirs(out)
+        nii2 = os.path.join(d, "PA.nii.gz")
+        open(nii2, "wb").close()
+        dwi = DwiiInput(nii=nii2, bval="b", bvec="v", nii2=nii2,
+                        bval2="b2", bvec2="v2",
+                        json_info={"PhaseEncodingDirection": "j-"},
+                        json_info2={"PhaseEncodingDirection": "j"})
+        pipe = AlspPipeline.__new__(AlspPipeline)
+        pipe.opts = PipelineOptions(unring=False)
+        pipe.env = SimpleNamespace(fsl_dir="", mrtrix_has_dwidenoise=False,
+                                   mrtrix_has_mrdegibbs=False)
+        pipe.sub_env = None
+        calls = []
+        pipe._run_body = (lambda runner, subject, dwi, out_dir, res:
+                          (calls.append(1), setattr(res, "ok", True))[0])
+        with open(os.path.join(out, "alps_result.json"), "w",
+                  encoding="utf-8") as fh:
+            json.dump({"subject": "s2", "ok": True, "method": "eddy_gpu",
+                       "topup": "on", "topup_config": "b02b0.cnf",
+                       "alps_L": "1.0"}, fh)
+        r = pipe.run("s2", dwi, out)
+        check(calls == [], "cached TOPUP result is reused")
+        check(r.method.endswith("(cached)") and r.topup == "on",
+              "cached TOPUP provenance preserved")
+
+
 def test_provenance_fields():
     print("== TOPUP provenance fields ==")
     r = AlspResult(subject="s1", ok=True, method="eddy_gpu",
@@ -275,7 +391,9 @@ def test_cli_help():
 def main():
     test_discovery_and_pairing()
     test_batch_auto_pairing()
+    test_sibling_pairing()
     test_pipeline_topup_step()
+    test_topup_aware_resume()
     test_provenance_fields()
     test_cli_help()
     print()

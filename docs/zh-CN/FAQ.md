@@ -24,7 +24,11 @@ alpsbox check
   不要与其他 eddy 处理的被试在下游混用。
 - **TOPUP 在哪里开？为什么没生效？** TOPUP 针对相位编码方向相反的第二套 DWI
   （AP + PA）。GUI：处理页 → **高级 → TOPUP**（单被试选自动检测或手动指定第二套；
-  批量自动按被试检测）；命令行：`run` 用 `--dwi2/--bval2/--bvec2/--json2`，
+  批量自动按被试检测）。单被试的自动检测先在被试目录内找；如果 AP/PA 被导出成
+  两个相邻文件夹，会在上级目录只有少量子文件夹且名称像同一序列变体时继续到相邻
+  文件夹查找，并在日志里注明用了哪个文件夹。上级目录里有很多被试时，请选择包含
+  两套数据的上级目录，或手动选择第二套 DWI。之前按单相位编码跑过的被试无需手动
+  删结果：重跑时会检测到旧结果未包含 TOPUP，并自动重新处理。命令行：`run` 用 `--dwi2/--bval2/--bvec2/--json2`，
   `batch` 用 `--topup-auto`，可用 `--topup-config` 指定 b02b0.cnf。没有反向 PE
   数据、任一 json 缺 `PhaseEncodingDirection`/`TotalReadoutTime`、两套方向相同、
   或找不到 b02b0.cnf 时会跳过；日志和 `alps_summary.csv` / `alps_result.json` 的

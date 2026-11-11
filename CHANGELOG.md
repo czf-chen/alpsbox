@@ -12,6 +12,15 @@ repository's history.
   as the CLI. Process page → Advanced → TOPUP: single-subject mode can auto-detect
   a reversed phase-encoding series or take a manually chosen second DWI; batch
   mode checks every subject folder automatically.
+- Fixed: single-subject auto-detect now also finds the reversed series when
+  the AP and PA exports sit in sibling folders (it looks at a few same-parent
+  folders whose names match; the log names the sibling used). Batch mode keeps
+  the strict inside-each-subject-folder rule to avoid cross-subject pairing.
+- Fixed: the GUI "Check inputs" preflight read Tk variables from a worker
+  thread; TOPUP settings are now resolved on the main thread before the worker
+  starts.
+- Fixed: a cached single-PE result is no longer reused when the input now has a
+  reversed-PE series; it is reprocessed with TOPUP automatically.
 - New CLI options: `run --dwi2/--bval2/--bvec2/--json2` (explicit second set),
   `batch --topup-auto` (per-subject auto pairing) and `--topup-config` (use a
   TOPUP configuration other than FSL's automatically located b02b0.cnf).

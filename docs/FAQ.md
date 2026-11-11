@@ -49,7 +49,15 @@ same-named `.bvec`. The base names must match exactly. Subfolders are searched.
 **Where do I enable TOPUP, and why was TOPUP skipped?**
 TOPUP is for a second DWI with the opposite phase-encoding direction (AP + PA).
 GUI: Process page → **Advanced → TOPUP** (single: auto-detect or choose the
-second DWI; batch: automatic per-subject detection). CLI: `--dwi2/--bval2/
+second DWI; batch: automatic per-subject detection). Single-subject auto-detect
+looks inside the selected folder first; if the AP and PA series were exported as
+two sibling folders, it also checks a few sibling folders of the same parent
+(when the names look like PE variants of one series) and logs which folder it
+used. If the parent contains many subjects, select the parent folder containing
+both series or choose the second DWI manually. Re-running a subject that was
+previously processed without TOPUP is handled automatically: the stale
+single-PE result is detected and reprocessed with TOPUP (no need to delete the
+old result by hand). CLI: `--dwi2/--bval2/
 --bvec2/--json2` for `run`, `--topup-auto` for `batch`, `--topup-config` for a
 custom `b02b0.cnf`. It is skipped when no reversed-PE series exists, when either
 JSON lacks `PhaseEncodingDirection`/`TotalReadoutTime`, when both series use the

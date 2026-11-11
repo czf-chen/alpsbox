@@ -192,6 +192,9 @@ STRINGS = {
         "en": "        [note] no usable json, so full eddy is not possible"},
 
     # ---- TOPUP ----
+    "pipe.topup_cached_stale": {
+        "zh_CN": "        TOPUP: 已有结果未包含 TOPUP，重新处理",
+        "en": "        TOPUP: cached result has no TOPUP; re-running"},
     "pipe.topup_reuse": {
         "zh_CN": "        TOPUP: 已有结果，复用",
         "en": "        TOPUP: existing result reused"},

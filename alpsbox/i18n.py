@@ -239,10 +239,12 @@ STRINGS = {
                  "PhaseEncodingDirection（同一轴、方向相反）和 TotalReadoutTime；"
                  "每套第一个 volume 为 b0。输入格式与主数据相同：NIfTI + 同名 "
                  ".bval + .bvec + BIDS .json；DICOM 需先用 dcm2niix 转换。\n\n"
-                 "单被试：选“自动检测”会在被试目录内寻找反向 PE 的第二套；"
-                 "选“手动选择”则指定第二套 DWI 的 NIfTI（同目录同名 bval/bvec/json "
-                 "自动匹配）。批量：每个被试目录自动检测，有则启用、无则单相位编码，"
-                 "不会中断队列。\n\n"
+                 "单被试：选“自动检测”会先在被试目录内寻找反向 PE 的第二套；"
+                 "找不到时，如果上级目录只有少量子文件夹且名称像同一序列的 AP/PA "
+                 "导出，会在相邻文件夹中继续查找（日志会注明使用了哪个相邻文件夹，"
+                 "请确认属于同一被试）。选“手动选择”则指定第二套 DWI 的 NIfTI"
+                 "（同目录同名 bval/bvec/json 自动匹配）。批量：每个被试目录自动"
+                 "检测，有则启用、无则单相位编码，不会中断队列。\n\n"
                  "默认自动查找 FSL 的 b02b0.cnf；也可指定其它 TOPUP 配置文件。"
                  "结果文件会记录 TOPUP 是否启用与配置名。\n\n"
                  "两套数据必须来自同一被试、同一协议，仅相位编码方向相反。"
@@ -256,9 +258,12 @@ STRINGS = {
               "of each series must be b0. Input format is the same as the main "
               "data: NIfTI + same-name .bval + .bvec + BIDS .json; convert DICOM "
               "with dcm2niix first.\n\n"
-              "Single subject: \"auto-detect\" searches the subject folder for a "
-              "reversed-PE series; \"choose file\" lets you pick the second DWI "
-              "NIfTI (same-name bval/bvec/json are matched automatically). Batch: "
+              "Single subject: \"auto-detect\" first searches the subject folder; "
+              "if nothing is found there, a few sibling folders of the same parent "
+              "are checked when their names look like AP/PA variants of one series "
+              "(the log names the sibling folder used; confirm it belongs to the "
+              "same subject). \"Choose file\" lets you pick the second DWI NIfTI "
+              "(same-name bval/bvec/json are matched automatically). Batch: "
               "every subject folder is checked automatically; TOPUP is used when a "
               "reversed-PE series exists, otherwise single-PE eddy runs; the "
               "cohort is never interrupted.\n\n"
@@ -281,9 +286,10 @@ STRINGS = {
     "topup.status.batch": {"zh_CN": "TOPUP：批量模式将为每个被试自动检测反向 PE 数据",
                            "en": "TOPUP: batch mode checks every subject folder "
                                  "for a reversed-PE series"},
-    "topup.status.auto": {"zh_CN": "TOPUP：自动检测（在单被试目录内查找反向 PE 数据）",
-                          "en": "TOPUP: auto-detect (search the subject folder for "
-                                "a reversed-PE series)"},
+    "topup.status.auto": {
+        "zh_CN": "TOPUP：自动检测（先在被试目录内查找反向 PE；找不到时检查上级目录中的少量相邻文件夹）",
+        "en": "TOPUP: auto-detect (search the subject folder, then a few sibling "
+              "folders of the same parent for a reversed-PE series)"},
     "topup.status.manual": {"zh_CN": "TOPUP：手动指定第二套 DWI",
                             "en": "TOPUP: choose the second DWI manually"},
     "msg.topup_invalid": {"zh_CN": "TOPUP 设置无效", "en": "Invalid TOPUP setup"},

@@ -200,7 +200,8 @@ def cmd_run(args) -> int:
             return 2
     elif getattr(args, "topup_auto", False):
         from .inputs import auto_attach_topup
-        ok, why = auto_attach_topup(dwi, args.subject_dir)
+        ok, why = auto_attach_topup(dwi, args.subject_dir,
+                                    search_siblings=True)
         if not ok:
             print(t("misc.dwi.topup_off", why))
 

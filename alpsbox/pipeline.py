@@ -288,18 +288,30 @@ class AlspPipeline:
         if os.path.isfile(cached) and not self.opts.force:
             try:
                 d = json.load(open(cached, encoding="utf-8"))
-                for k, v in d.items():
-                    if hasattr(res, k) and k != "subject":
-                        setattr(res, k, v)
-                res.subject = subject
-                res.method = str(res.method) + " (cached)"
-                if not getattr(res, "topup", ""):
-                    if os.path.isfile(os.path.join(
-                            out_dir, "my_topup_results_fieldcoef.nii.gz")):
-                        res.topup = "on (cached)"
-                    else:
-                        res.topup = "off (no reversed-PE input)"
-                return res
+                fieldcoef = os.path.join(
+                    out_dir, "my_topup_results_fieldcoef.nii.gz")
+                cached_topup = str(d.get("topup", "") or "")
+                # A cached result produced without TOPUP must not be reused when
+                # the input now carries a reversed phase-encoding series: that
+                # would silently keep a single-PE result after the user enabled
+                # TOPUP (e.g. after the sibling-folder pairing was fixed).
+                # Results from older versions have no topup field; their TOPUP
+                # output file is used as evidence.
+                stale = (getattr(dwi, "has_dual_pe", False)
+                         and not cached_topup.startswith("on")
+                         and not os.path.isfile(fieldcoef))
+                if stale:
+                    print(t("pipe.topup_cached_stale"))
+                else:
+                    for k, v in d.items():
+                        if hasattr(res, k) and k != "subject":
+                            setattr(res, k, v)
+                    res.subject = subject
+                    res.method = str(res.method) + " (cached)"
+                    if not getattr(res, "topup", ""):
+                        res.topup = ("on (cached)" if os.path.isfile(fieldcoef)
+                                     else "off (no reversed-PE input)")
+                    return res
             except Exception:
                 pass
 

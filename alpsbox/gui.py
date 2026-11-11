@@ -2259,6 +2259,13 @@ class App(tk.Tk):
             messagebox.showerror(t("msg.input_invalid"),
                                  t("msg.input_invalid_body"))
             return
+        # Tk variables must be read on the main thread; the worker below only
+        # uses the resulting plain dict.
+        try:
+            topup = self._topup_settings()
+        except ValueError as e:
+            messagebox.showerror(t("msg.topup_invalid"), str(e))
+            return
         self._show_page("log")
         self._log("")
         self._log("=" * 58)
@@ -2268,11 +2275,6 @@ class App(tk.Tk):
         out = self.var_out.get().strip() or os.path.join(indir, "alps_results")
 
         def work():
-            try:
-                topup = self._topup_settings()
-            except ValueError as e:
-                self.q.put(("log", t("log.topup_invalid", e)))
-                return
             if mode == "batch":
                 jobs = collect_jobs(indir, out)
                 good, bad = preflight(
@@ -2306,7 +2308,8 @@ class App(tk.Tk):
                                 ok, why = attach_second_from_nii(
                                     d, topup["nii2"])
                             else:
-                                ok, why = auto_attach_topup(d, indir)
+                                ok, why = auto_attach_topup(
+                                    d, indir, search_siblings=True)
                         except Exception as e:
                             ok, why = False, str(e)
                         if not ok:
@@ -2516,7 +2519,8 @@ class App(tk.Tk):
                             ok, why = attach_second_from_nii(
                                 dwi, topup["nii2"])
                         else:
-                            ok, why = auto_attach_topup(dwi, indir)
+                            ok, why = auto_attach_topup(
+                                dwi, indir, search_siblings=True)
                     except Exception as e:
                         ok, why = False, str(e)
                     if not ok:

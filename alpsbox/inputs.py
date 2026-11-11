@@ -15,9 +15,11 @@ Edge cases handled here:
 """
 from __future__ import annotations
 
+import difflib
 import glob
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -367,22 +369,114 @@ def attach_second_from_nii(primary: DwiiInput, nii2: str) -> tuple:
     return primary.check_dual_pe()
 
 
+# Folder-name tokens that mark a phase-encoding direction. Used only for the
+# guarded sibling search below; acquisition names differ between sites.
+_PE_NAME_TOKENS = frozenset((
+    "ap", "pa", "rl", "lr", "col", "row", "a2p", "p2a", "r2l", "l2r",
+    "col2row", "row2col", "apra", "paap", "fwd", "rev", "forward", "reverse",
+))
+
+
+def _name_tokens(name: str) -> list:
+    return [x for x in re.split(r"[^a-z0-9]+", (name or "").lower()) if x]
+
+
+def _name_stem(name: str) -> str:
+    """Folder name without PE tokens (used to compare two PE-variant folders)."""
+    return "".join(x for x in _name_tokens(name) if x not in _PE_NAME_TOKENS)
+
+
+def _names_are_pe_variants(a: str, b: str) -> bool:
+    """Heuristic: two sibling folder names look like AP/PA variants of one series."""
+    ta, tb = _name_tokens(a), _name_tokens(b)
+    if not any(x in _PE_NAME_TOKENS for x in ta):
+        return False
+    if not any(x in _PE_NAME_TOKENS for x in tb):
+        return False
+    sa, sb = _name_stem(a), _name_stem(b)
+    if not sa or not sb:
+        return True
+    return difflib.SequenceMatcher(None, sa, sb).ratio() >= 0.6
+
+
+def _find_sibling_reversed(primary: DwiiInput, subject_dir: str) -> tuple:
+    """Search immediate sibling folders for a reversed-PE series.
+
+    Returns ``(second, sibling_name, reason)``. This is intentionally
+    conservative: it only runs for single-subject mode, only when the parent
+    folder is small (a few series, not a cohort root), and only when the sibling
+    name looks like the other PE variant of the selected series.
+    """
+    me = os.path.abspath(subject_dir)
+    parent = os.path.dirname(me)
+    if parent == me:
+        return None, "", t("misc.dwi.sibling_none")
+    try:
+        names = sorted(os.listdir(parent))
+    except OSError:
+        return None, "", t("misc.dwi.sibling_none")
+    sibs = []
+    for n in names:
+        p = os.path.join(parent, n)
+        if n.startswith(".") or not os.path.isdir(p):
+            continue
+        if os.path.abspath(p) == me:
+            continue
+        sibs.append(p)
+    if not sibs:
+        return None, "", t("misc.dwi.sibling_none")
+    if len(sibs) > 4:
+        return None, "", t("misc.dwi.sibling_too_many", len(sibs))
+    me_name = os.path.basename(me)
+    best = None
+    best_name = ""
+    best_score = -1.0
+    for sib in sibs:
+        sib_name = os.path.basename(sib)
+        if not _names_are_pe_variants(me_name, sib_name):
+            continue
+        try:
+            candidates = discover_all(sib, deep=True)
+        except Exception:
+            continue
+        for cand in candidates:
+            p1, p2 = primary.pe_direction, cand.pe_direction
+            if not p1 or not p2:
+                continue
+            if p1.rstrip("-") != p2.rstrip("-") or p1 == p2:
+                continue
+            score = difflib.SequenceMatcher(
+                None, _name_stem(me_name), _name_stem(sib_name)).ratio()
+            if score > best_score:
+                best, best_name, best_score = cand, sib_name, score
+    if best is None:
+        return None, "", t("misc.dwi.sibling_no_match")
+    return best, best_name, ""
+
+
 def auto_attach_topup(primary: DwiiInput, subject_dir: str,
-                      deep: bool = True) -> tuple:
+                      deep: bool = True, search_siblings: bool = False) -> tuple:
     """Find and attach a reversed-PE series for TOPUP automatically.
 
-    Used by batch mode and by the GUI's "auto-detect" option. A missing second
-    series is not an error: the caller continues with single-PE eddy. Returns
-    ``(ok, reason)``.
+    Used by batch mode, the GUI's "auto-detect" option and ``run --topup-auto``.
+    A missing second series is not an error: the caller continues with single-PE
+    eddy. With *search_siblings* (single-subject mode only) immediate sibling
+    folders are checked as well, which covers the common structure where an AP
+    and a PA export sit next to each other. Returns ``(ok, reason)``.
     """
     try:
         candidates = discover_all(subject_dir, deep)
     except Exception as e:
         return False, str(e)
     second, why = find_reversed_dwi(primary, candidates)
+    sibling = ""
+    if second is None and search_siblings:
+        second, sibling, why = _find_sibling_reversed(primary, subject_dir)
     if second is None:
         return False, why
     attach_second(primary, second)
+    if sibling:
+        primary.notes.append(t("misc.dwi.sibling_used", sibling))
     return primary.check_dual_pe()
 
 

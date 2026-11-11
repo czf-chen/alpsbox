@@ -190,10 +190,13 @@ STRINGS = {
                       "en": "BIDS json of the second DWI"},
     "cli.opt.topup_auto": {
         "zh_CN": "自动检测 TOPUP：在每个被试文件夹里寻找相位编码方向相反的第二套 DWI，"
-                 "找到就启用 TOPUP（批量模式推荐）",
+                 "找到就启用 TOPUP（批量模式推荐；单被试模式还会检查上级目录中的少量"
+                 "相邻文件夹，用于 AP/PA 分文件夹导出的情况）",
         "en": "auto-detect TOPUP: look for a second DWI with the opposite "
               "phase-encoding direction in each subject folder and use it for "
-              "TOPUP when present (recommended for batch mode)"},
+              "TOPUP when present (recommended for batch mode; in single-subject "
+              "mode a few sibling folders of the same parent are also checked, "
+              "for AP/PA exports split across folders)"},
     "cli.opt.topup_config": {
         "zh_CN": "TOPUP 配置文件（b02b0.cnf）路径；默认自动在 FSL 安装目录中查找",
         "en": "path to the TOPUP configuration file (b02b0.cnf); by default it "
@@ -460,6 +463,29 @@ STRINGS = {
                           "en": "TOPUP enabled (%s <-> %s)"},
     "misc.dwi.topup_off": {"zh_CN": "TOPUP 未启用：%s",
                            "en": "TOPUP not used: %s"},
+    "misc.dwi.sibling_used": {
+        "zh_CN": "在相邻文件夹“%s”中找到反向相位编码的第二套 DWI；"
+                 "请确认它与主数据来自同一被试",
+        "en": "found the reversed phase-encoding DWI in the sibling folder "
+              "\"%s\"; confirm that it belongs to the same subject"},
+    "misc.dwi.sibling_none": {
+        "zh_CN": "所选文件夹内没有第二套反向相位编码数据，也没有可搜索的相邻文件夹；"
+                 "可选择包含两套数据的上级目录，或手动选择第二套 DWI",
+        "en": "no reversed phase-encoding series inside the selected folder and "
+              "no sibling folder to search; select the parent folder that "
+              "contains both series, or choose the second DWI manually"},
+    "misc.dwi.sibling_too_many": {
+        "zh_CN": "上级目录有 %d 个子文件夹，跳过相邻自动检测以避免配错被试；"
+                 "请选择包含两套数据的上级目录，或手动选择第二套 DWI",
+        "en": "the parent folder has %d subfolders; skipping the sibling search to "
+              "avoid pairing data from different subjects. Select the parent "
+              "folder containing both series, or choose the second DWI manually"},
+    "misc.dwi.sibling_no_match": {
+        "zh_CN": "所选文件夹内没有第二套反向相位编码数据，相邻文件夹中也没有"
+                 "名称匹配的候选；可手动选择第二套 DWI，或选择包含两套数据的上级目录",
+        "en": "no reversed phase-encoding series inside the selected folder and "
+              "no name-compatible candidate among its siblings; choose the second "
+              "DWI manually, or select the parent folder containing both series"},
     "cli.err.topup_invalid": {"zh_CN": "[错误] TOPUP 设置无效：%s",
                               "en": "[error] invalid TOPUP setup: %s"},
     "cli.err.topup_cfg": {"zh_CN": "[错误] TOPUP 配置文件不存在：%s",

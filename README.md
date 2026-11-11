@@ -240,7 +240,12 @@ sub_001/
 - **Parameters:** FSL's `b02b0.cnf` is located automatically; pass
   `--topup-config /path/to/b02b0.cnf` to use a different configuration.
 - **GUI:** **Advanced → TOPUP** (auto-detect or choose the second DWI; batch mode
-  detects per subject automatically).
+  detects per subject automatically). Single-subject auto-detect searches the
+  selected folder first, then a few sibling folders of the same parent when their
+  names look like AP/PA variants of one series — this covers the common layout
+  where the AP and PA exports are two separate folders; the log names the folder
+  used, so confirm it belongs to the same subject. Alternatively select the parent
+  folder that contains both series.
 - **Provenance:** `alps_result.json` / `alps_summary.csv` carry a `topup` status
   (`on`, `off`, `skipped: reason`, `failed`) and the config name; the HTML report
   lists it under the processing definition and QC report counts TOPUP usage.

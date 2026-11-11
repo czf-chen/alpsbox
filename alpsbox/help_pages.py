@@ -100,7 +100,9 @@ json 的文件名不需要和 nii 一致
 
 如果同一被试还有一套相位编码方向相反的 DWI（例如 AP + PA），可以启用 TOPUP：
 在「高级」参数里勾选 TOPUP，单被试选“自动检测”或“手动选择”第二套 NIfTI；批量
-模式会对每个被试文件夹自动检测。两套数据各自需要同名的 .bval/.bvec，两套 .json
+模式会对每个被试文件夹自动检测。单被试的“自动检测”先在被试目录内查找，找不到时
+会检查同一上级目录中的少量相邻文件夹（AP/PA 分文件夹导出的常见结构），并在日志
+里注明使用了哪个相邻文件夹。两套数据各自需要同名的 .bval/.bvec，两套 .json
 都要有 PhaseEncodingDirection（同一轴、一正一负）和 TotalReadoutTime，且每套
 第一个 volume 为 b0。DICOM 同样先用 dcm2niix 转成 NIfTI + bval/bvec/json 再使用。
 两套方向相同的数据不会启用 TOPUP，日志会提示。结果文件会记录 TOPUP 是否启用、
@@ -413,7 +415,9 @@ Optional: TOPUP distortion correction (dual phase encoding)
 If the same subject has a second DWI with the opposite phase-encoding direction
 (for example AP + PA), TOPUP can be enabled under Advanced: in single-subject
 mode choose auto-detect or pick the second NIfTI; in batch mode every subject
-folder is checked automatically. Each series needs its own same-name .bval/.bvec,
+folder is checked automatically. Single-subject auto-detect first searches the
+selected folder; if nothing is found, a few sibling folders of the same parent
+are checked (the common AP/PA export layout) and the log names the sibling used. Each series needs its own same-name .bval/.bvec,
 both .json files must contain PhaseEncodingDirection (same axis, one positive and
 one negative) and TotalReadoutTime, and the first volume of each series must be
 b0. Convert DICOM with dcm2niix first, exactly like the main input. Two series
