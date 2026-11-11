@@ -4,6 +4,8 @@
 
 [**English**](README.md) | [**简体中文**](README.zh-CN.md)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24137518.svg)](https://doi.org/10.5281/zenodo.24137518)
+
 ALPSbox computes the diffusion tensor image analysis along the perivascular
 space (DTI-ALPS) index from diffusion MRI, per subject or for a whole cohort,
 and adds the parts that a study actually needs: input validation, resumable
@@ -304,6 +306,8 @@ checksums are in
 > including every processing step and all third-party tools.
 
 ### Citing ALPSbox
+
+Archived release (Zenodo): [10.5281/zenodo.24137518](https://doi.org/10.5281/zenodo.24137518).
 
 Machine-readable metadata is in [CITATION.cff](CITATION.cff) (GitHub shows a
 "Cite this repository" button). For a manuscript, cite the software plus the

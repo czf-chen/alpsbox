@@ -16,6 +16,8 @@ Until a paper is published, cite the software as:
 > control and HTML reports.* Version 1.0.0. GitHub; 2026.
 > https://github.com/czf-chen/alpsbox
 
+Archived release: ALPSbox v1.0.0. *Zenodo*. doi:10.5281/zenodo.24137518 (https://doi.org/10.5281/zenodo.24137518)
+
 A machine-readable `CITATION.cff` is provided in the repository root (GitHub
 shows a "Cite this repository" button). Once a journal paper is published,
 please cite that paper instead — the software citation remains useful as a

@@ -4,6 +4,8 @@
 
 [**English**](README.md) | [**简体中文**](README.zh-CN.md)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24137518.svg)](https://doi.org/10.5281/zenodo.24137518)
+
 ALPSbox 从扩散 MRI 计算沿血管周围间隙的扩散张量分析（DTI-ALPS）指数，
 支持单个被试或整个队列，并补上做研究真正需要的东西：输入检查、可断点续跑的
 批处理、8 类质控指标和可打印的 HTML 报告——底层调用标准的 FSL/MRtrix3 工具。
@@ -274,6 +276,8 @@ Copyright (c) 2023 Giuseppe Barisano），来源与 sha256 校验值见
 > [docs/zh-CN/CITATIONS.md](docs/zh-CN/CITATIONS.md)。
 
 ### 引用 ALPSbox
+
+归档版本（Zenodo DOI）：[10.5281/zenodo.24137518](https://doi.org/10.5281/zenodo.24137518)。
 
 机器可读元数据见 [CITATION.cff](CITATION.cff)（GitHub 会显示
 "Cite this repository"）。论文中请同时引用本软件、方法原始文献与参考实现

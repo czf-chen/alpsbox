@@ -13,6 +13,8 @@
 > control and HTML reports*. Version 1.0.0. GitHub; 2026.
 > https://github.com/czf-chen/alpsbox
 
+归档版本：ALPSbox v1.0.0。*Zenodo*。doi:10.5281/zenodo.24137518（https://doi.org/10.5281/zenodo.24137518）
+
 仓库内提供了机器可读的 `CITATION.cff`（GitHub 会显示 "Cite this repository"）。
 **正式发表后请以论文引用为准。**
 

@@ -7,6 +7,9 @@ authors:
   - name: "ALPSbox contributors"
 version: "1.0.0"
 date-released: "2026-11-11"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.24137518"
 license: MIT
 abstract: >-
   Per-subject and batch DTI-ALPS processing on top of FSL/MRtrix3. Inputs are
