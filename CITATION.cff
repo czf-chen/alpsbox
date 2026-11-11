@@ -1,0 +1,487 @@
+cff-version: 1.2.0
+message: "If you use ALPSbox in your research, please cite this software, the ALPS method paper, and the reference-implementation software and paper listed in references."
+title: "ALPSbox: one-click DTI-ALPS processing with quality control and HTML reports"
+type: software
+url: "https://github.com/your-org/alpsbox"   # TODO: replace after the public repository is created
+authors:
+  - name: "ALPSbox contributors"
+version: "1.0.0"
+date-released: "2026-11-11"
+license: MIT
+abstract: >-
+  Per-subject and batch DTI-ALPS processing on top of FSL/MRtrix3. Inputs are
+  DICOM/NIfTI diffusion data with bval/bvec (and BIDS JSON for full eddy).
+  The pipeline performs Gibbs unringing, eddy-current/motion correction
+  (with outlier-slice replacement), brain extraction, tensor fitting and
+  reorientation with vecreg, ROI extraction on the JHU-ICBM-FA-1mm template,
+  and computes the ALPS index. Every subject receives eight categories of
+  quality-control checks (including a registration-robustness metric), a
+  recorded processing definition, and a single-file HTML report; CSV/JSON
+  exports are provided for downstream statistics. GUI and CLI are bilingual
+  (English/Chinese). FSL is not redistributed.
+keywords:
+  - DTI-ALPS
+  - glymphatic system
+  - diffusion MRI
+  - neuroimaging
+  - FSL
+  - quality control
+references:
+  - type: article
+    title: >-
+      Evaluation of glymphatic system activity with the diffusion MR technique:
+      diffusion tensor image analysis along the perivascular space (DTI-ALPS)
+      in Alzheimer's disease cases
+    authors:
+      - family-names: Taoka
+        given-names: Toshiaki
+      - family-names: Masutani
+        given-names: Yoshitaka
+      - family-names: Kawai
+        given-names: Hisashi
+      - family-names: Nakane
+        given-names: Toshiki
+      - family-names: Matsuoka
+        given-names: Kiwamu
+      - family-names: Yasuno
+        given-names: Fumihiko
+      - family-names: Kishimoto
+        given-names: Toshifumi
+      - family-names: Naganawa
+        given-names: Shinji
+    journal: Japanese Journal of Radiology
+    year: 2017
+    volume: 35
+    issue: 4
+    start: 172
+    end: 178
+    doi: 10.1007/s11604-017-0617-z
+  - type: article
+    title: >-
+      Reproducibility of diffusion tensor image analysis along the perivascular
+      space (DTI-ALPS) for evaluating interstitial fluid diffusivity and
+      glymphatic function: CHanges in Alps index on Multiple conditiON
+      acquIsition eXperiment (CHAMONIX) study
+    authors:
+      - family-names: Taoka
+        given-names: Toshiaki
+      - family-names: Ito
+        given-names: Rintaro
+      - family-names: Nakamichi
+        given-names: Rei
+      - family-names: Kamagata
+        given-names: Koji
+      - family-names: Sakai
+        given-names: Mayuko
+      - family-names: Kawai
+        given-names: Hisashi
+      - family-names: Nakane
+        given-names: Toshiki
+      - family-names: Abe
+        given-names: Takashi
+      - family-names: Ichikawa
+        given-names: Kazushige
+      - family-names: Kikuta
+        given-names: Junko
+      - family-names: Aoki
+        given-names: Shigeki
+      - family-names: Naganawa
+        given-names: Shinji
+    journal: Japanese Journal of Radiology
+    year: 2022
+    volume: 40
+    issue: 2
+    start: 147
+    end: 158
+    doi: 10.1007/s11604-021-01187-5
+  - type: article
+    title: >-
+      Improved reproducibility of diffusion tensor image analysis along the
+      perivascular space (DTI-ALPS) index: an analysis of reorientation
+      technique of the OASIS-3 dataset
+    authors:
+      - family-names: Tatekawa
+        given-names: Hiroyuki
+      - family-names: Matsushita
+        given-names: Shu
+      - family-names: Ueda
+        given-names: Daiju
+      - family-names: Takita
+        given-names: Hirotaka
+      - family-names: Horiuchi
+        given-names: Daisuke
+      - family-names: Atsukawa
+        given-names: Natsuko
+      - family-names: Morishita
+        given-names: Yuka
+      - family-names: Tsukamoto
+        given-names: Taro
+      - family-names: Shimono
+        given-names: Taro
+      - family-names: Miki
+        given-names: Yukio
+    journal: Japanese Journal of Radiology
+    year: 2023
+    volume: 41
+    issue: 4
+    start: 393
+    end: 400
+    doi: 10.1007/s11604-022-01370-2
+  - type: article
+    title: >-
+      Spatial transformations of diffusion tensor magnetic resonance images
+    authors:
+      - family-names: Alexander
+        given-names: Daniel C.
+      - family-names: Pierpaoli
+        given-names: Carlo
+      - family-names: Basser
+        given-names: Peter J.
+      - family-names: Gee
+        given-names: James C.
+    journal: IEEE Transactions on Medical Imaging
+    year: 2001
+    volume: 20
+    issue: 11
+    start: 1131
+    end: 1139
+    doi: 10.1109/42.963816
+  - type: article
+    title: >-
+      Automatic determination of glymphatic flow with the DTI-ALPS-index along
+      the principal axis system in native imaging space corrects for head and
+      fiber orientation
+    authors:
+      - family-names: Ajouz
+        given-names: Ali
+      - family-names: Jansen
+        given-names: Olav
+      - family-names: Frohwein
+        given-names: Lynn Johann
+      - family-names: Seehafer
+        given-names: Svea
+      - family-names: Larsen
+        given-names: Naomi
+      - family-names: Hövener
+        given-names: Jan-Bernd
+    journal: Magnetic Resonance in Medicine
+    year: 2026
+    volume: 95
+    issue: 2
+    start: 1110
+    end: 1122
+    doi: 10.1002/mrm.70082
+  - type: article
+    title: >-
+      White matter geometry confounds diffusion tensor imaging along
+      perivascular space (DTI-ALPS) measures
+    authors:
+      - family-names: Schilling
+        given-names: Kurt G.
+      - family-names: Newton
+        given-names: Allen
+      - family-names: Tax
+        given-names: Chantal
+      - family-names: Nilsson
+        given-names: Markus
+      - family-names: Chamberland
+        given-names: Maxime
+      - family-names: Anderson
+        given-names: Adam
+      - family-names: Landman
+        given-names: Bennett
+      - family-names: Descoteaux
+        given-names: Maxime
+    journal: Human Brain Mapping
+    year: 2025
+    volume: 46
+    issue: 10
+    doi: 10.1002/hbm.70282
+  - type: article
+    title: >-
+      Reliability and spatial consistency of MR diffusion tensor imaging
+      measures along the cerebral perivascular space
+    authors:
+      - family-names: Qiu
+        given-names: Enchao
+      - family-names: Chaganti
+        given-names: Joga
+      - family-names: Phan
+        given-names: Phillip
+      - family-names: Alizadeh
+        given-names: Mahdi
+      - family-names: Middleton
+        given-names: Devon
+      - family-names: Talekar
+        given-names: Kiran
+      - family-names: Mondel
+        given-names: Prabath K.
+      - family-names: Faro
+        given-names: Scott H.
+      - family-names: Mohamed
+        given-names: Feroze B.
+      - family-names: Yuan
+        given-names: Hsiangkuo
+    journal: Journal of Neuroimaging
+    year: 2025
+    volume: 35
+    issue: 5
+    doi: 10.1111/jon.70086
+  - type: article
+    title: >-
+      Spurious but systematic correlations in functional connectivity MRI
+      networks arise from subject motion
+    authors:
+      - family-names: Power
+        given-names: Jonathan D.
+      - family-names: Barnes
+        given-names: Kelly A.
+      - family-names: Snyder
+        given-names: Abraham Z.
+      - family-names: Schlaggar
+        given-names: Bradley L.
+      - family-names: Petersen
+        given-names: Steven E.
+    journal: NeuroImage
+    year: 2012
+    volume: 59
+    issue: 3
+    start: 2142
+    end: 2154
+    doi: 10.1016/j.neuroimage.2011.10.018
+  - type: article
+    title: >-
+      An integrated approach to correction for off-resonance effects and subject
+      movement in diffusion MR imaging
+    authors:
+      - family-names: Andersson
+        given-names: Jesper L. R.
+      - family-names: Sotiropoulos
+        given-names: Stamatios N.
+    journal: NeuroImage
+    year: 2016
+    volume: 125
+    start: 1063
+    end: 1078
+    doi: 10.1016/j.neuroimage.2015.10.019
+  - type: article
+    title: >-
+      How to correct susceptibility distortions in spin-echo echo-planar images:
+      application to diffusion tensor imaging
+    authors:
+      - family-names: Andersson
+        given-names: Jesper L. R.
+      - family-names: Skare
+        given-names: Stefan
+      - family-names: Ashburner
+        given-names: John
+    journal: NeuroImage
+    year: 2003
+    volume: 20
+    issue: 2
+    start: 870
+    end: 888
+    doi: 10.1016/S1053-8119(03)00336-7
+  - type: article
+    title: >-
+      Gibbs-ringing artifact removal based on local subvoxel-shifts
+    authors:
+      - family-names: Kellner
+        given-names: Elias
+      - family-names: Dhital
+        given-names: Bibek
+      - family-names: Kiselev
+        given-names: Valerij G.
+      - family-names: Reisert
+        given-names: Marco
+    journal: Magnetic Resonance in Medicine
+    year: 2016
+    volume: 76
+    issue: 5
+    start: 1574
+    end: 1581
+    doi: 10.1002/mrm.26054
+  - type: article
+    title: Fast robust automated brain extraction
+    authors:
+      - family-names: Smith
+        given-names: Stephen M.
+    journal: Human Brain Mapping
+    year: 2002
+    volume: 17
+    issue: 3
+    start: 143
+    end: 155
+    doi: 10.1002/hbm.10062
+  - type: article
+    title: MR diffusion tensor spectroscopy and imaging
+    authors:
+      - family-names: Basser
+        given-names: Peter J.
+      - family-names: Mattiello
+        given-names: James
+      - family-names: LeBihan
+        given-names: Denis
+    journal: Biophysical Journal
+    year: 1994
+    volume: 66
+    issue: 1
+    start: 259
+    end: 267
+    doi: 10.1016/S0006-3495(94)80775-1
+  - type: article
+    title: >-
+      Improved optimization for the robust and accurate linear registration and
+      motion correction of brain images
+    authors:
+      - family-names: Jenkinson
+        given-names: Mark
+      - family-names: Bannister
+        given-names: Peter
+      - family-names: Brady
+        given-names: Michael
+      - family-names: Smith
+        given-names: Stephen
+    journal: NeuroImage
+    year: 2002
+    volume: 17
+    issue: 2
+    start: 825
+    end: 841
+    doi: 10.1006/nimg.2002.1132
+  - type: article
+    title: FSL
+    authors:
+      - family-names: Jenkinson
+        given-names: Mark
+      - family-names: Beckmann
+        given-names: Christian F.
+      - family-names: Behrens
+        given-names: Timothy E. J.
+      - family-names: Woolrich
+        given-names: Mark W.
+      - family-names: Smith
+        given-names: Stephen M.
+    journal: NeuroImage
+    year: 2012
+    volume: 62
+    issue: 2
+    start: 782
+    end: 790
+    doi: 10.1016/j.neuroimage.2011.09.015
+  - type: article
+    title: >-
+      MRtrix3: A fast, flexible and open software framework for medical image
+      processing and visualisation
+    authors:
+      - family-names: Tournier
+        given-names: J.-Donald
+      - family-names: Smith
+        given-names: Robert
+      - family-names: Raffelt
+        given-names: David
+      - family-names: Tabbara
+        given-names: Rami
+      - family-names: Dhollander
+        given-names: Thijs
+      - family-names: Pietsch
+        given-names: Maximilian
+      - family-names: Christiaens
+        given-names: Daan
+      - family-names: Jeurissen
+        given-names: Ben
+      - family-names: Yeh
+        given-names: Chun-Hung
+      - family-names: Connelly
+        given-names: Alan
+    journal: NeuroImage
+    year: 2019
+    volume: 202
+    start: 116137
+    doi: 10.1016/j.neuroimage.2019.116137
+  - type: article
+    title: >-
+      The first step for neuroimaging data analysis: DICOM to NIfTI conversion
+    authors:
+      - family-names: Li
+        given-names: Xiangrui
+      - family-names: Morgan
+        given-names: Paul S.
+      - family-names: Ashburner
+        given-names: John
+      - family-names: Smith
+        given-names: Jolinda
+      - family-names: Rorden
+        given-names: Christopher
+    journal: Journal of Neuroscience Methods
+    year: 2016
+    volume: 264
+    start: 47
+    end: 56
+    doi: 10.1016/j.jneumeth.2016.03.001
+  - type: article
+    title: >-
+      Cross-vendor test-retest validation of diffusion tensor image analysis
+      along the perivascular space (DTI-ALPS) for evaluating glymphatic system
+      function
+    authors:
+      - family-names: Liu
+        given-names: Xiaodan
+      - family-names: Barisano
+        given-names: Giuseppe
+      - family-names: Shao
+        given-names: Xingfeng
+      - family-names: Jann
+        given-names: Kay
+      - family-names: Ringman
+        given-names: John M.
+      - family-names: Lu
+        given-names: Hanzhang
+      - family-names: Arfanakis
+        given-names: Konstantinos
+      - family-names: Caprihan
+        given-names: Arvind
+      - family-names: DeCarli
+        given-names: Charles
+      - family-names: Gold
+        given-names: Brian T.
+      - family-names: Maillard
+        given-names: Pauline
+      - family-names: Satizabal
+        given-names: Claudia L.
+      - family-names: Fadaee
+        given-names: Elyas
+      - family-names: Habes
+        given-names: Mohamad
+      - family-names: Stables
+        given-names: Lara
+      - family-names: Singh
+        given-names: Herpreet
+      - family-names: Fischl
+        given-names: Bruce
+      - family-names: van der Kouwe
+        given-names: Andre
+      - family-names: Schwab
+        given-names: Kristin
+      - family-names: Helmer
+        given-names: Karl G.
+      - family-names: Greenberg
+        given-names: Steven M.
+      - family-names: Wang
+        given-names: Danny J. J.
+      - name: "MarkVCID Consortium"
+    journal: Aging and Disease
+    year: 2024
+    volume: 15
+    issue: 4
+    start: 1885
+    end: 1898
+    doi: 10.14336/AD.2023.0321-2
+  - type: software
+    title: "alps: Bash script to compute DTI-ALPS (alps.sh)"
+    authors:
+      - family-names: Barisano
+        given-names: Giuseppe
+    repository-code: "https://github.com/gbarisano/alps"
+    version: "commit e6f58e7c1b882a799b613e91fe15bab940dc4cd3 (2025-09-12)"
+    year: 2025

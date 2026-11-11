@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alpsbox"
+version = "1.0.0"
+description = "One-click DTI-ALPS processing with quality control and HTML reports (GUI/CLI, built on FSL)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "ALPSbox contributors" }]
+keywords = [
+    "DTI-ALPS",
+    "glymphatic",
+    "diffusion MRI",
+    "neuroimaging",
+    "FSL",
+    "quality control",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+# Python dependencies. FSL / MRtrix3 / dcm2niix are not Python packages and
+# must be installed separately (see docs/INSTALL.md); the GUI also needs
+# tkinter (an OS package on Linux, e.g. python3-tk).
+dependencies = [
+    "numpy>=1.20",
+    "nibabel>=4.0",
+    "pillow>=9.0",
+    "matplotlib>=3.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/alpsbox"          # TODO: replace with the public URL
+Documentation = "https://github.com/your-org/alpsbox/tree/main/docs"
+Changelog = "https://github.com/your-org/alpsbox/blob/main/CHANGELOG.md"
+
+[project.scripts]
+alpsbox = "alpsbox.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["alpsbox*"]
+
+[tool.setuptools.package-data]
+alpsbox = ["data/**/*.nii.gz", "data/**/*.txt", "data/**/*.md"]

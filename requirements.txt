@@ -1,0 +1,10 @@
+# Runtime dependencies (mirrors [project].dependencies in pyproject.toml).
+#
+# FSL, MRtrix3 and dcm2niix are NOT Python packages: install them yourself
+# (see docs/INSTALL.md). The GUI additionally needs tkinter, which is part of
+# CPython on Windows/macOS but a separate OS package on Linux
+# (e.g. `sudo apt install python3-tk`).
+numpy>=1.20
+nibabel>=4.0
+pillow>=9.0
+matplotlib>=3.5

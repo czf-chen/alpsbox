@@ -1,0 +1,13 @@
+# Normalize line endings for cross-platform contributors.
+* text=auto
+
+# Windows launcher must keep CRLF, or cmd.exe misparses it.
+*.bat text eol=crlf
+
+# Shell launchers and Python sources should stay LF.
+*.sh  text eol=lf
+*.py  text eol=lf
+
+# Bundled ROI masks are binary.
+*.nii.gz binary
+*.png binary

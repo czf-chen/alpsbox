@@ -1,0 +1,22 @@
+{
+  "title": "ALPSbox: one-click DTI-ALPS processing with quality control and HTML reports",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "language": "eng",
+  "creators": [
+    {
+      "name": "ALPSbox contributors"
+    }
+  ],
+  "description": "<p>ALPSbox computes the DTI-ALPS index from diffusion MRI per subject or for a cohort, on top of FSL and MRtrix3: Gibbs unringing, eddy-current/motion correction with outlier-slice replacement, brain extraction, tensor fitting and reorientation with <code>vecreg</code>, JHU-ICBM-FA-1mm registration, ROI extraction and the ALPS index. Each subject receives eight categories of quality-control checks (including a registration-robustness metric), a recorded processing definition and a single-file HTML report; CSV/JSON exports are provided for downstream statistics. GUI and CLI are bilingual (English/Chinese). The bundled ROI masks are reproduced from the MIT-licensed <a href=\"https://github.com/gbarisano/alps\">gbarisano/alps</a> reference implementation; FSL and MRtrix3 are not redistributed. See the repository documentation for installation, validation and citations.</p>",
+  "keywords": [
+    "DTI-ALPS",
+    "glymphatic system",
+    "diffusion MRI",
+    "neuroimaging",
+    "FSL",
+    "quality control"
+  ],
+  "notes": "Cite also the ALPS method paper (Taoka et al., 2017) and the reference implementation (gbarisano/alps, MIT) with its companion paper (Liu & Barisano, 2024). Full citations are in docs/CITATIONS.md and CITATION.cff."
+}

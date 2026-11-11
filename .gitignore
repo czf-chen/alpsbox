@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Run artefacts (never commit)
+*.nii
+*.nii.gz
+!alpsbox/data/ROIs_JHU_ALPS/*.nii.gz
+alps_results/
+*.bak
+*.log
+
+# Local environments
+venv/
+.venv/
+env/
