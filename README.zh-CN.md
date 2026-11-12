@@ -158,7 +158,7 @@ alpsbox report /path/to/results
 | ALPS 值 | `alps_L`、`alps_R`、`alps_mean`，以及公式用到的 8 个扩散率分量 |
 | 质控（8 类 + 处理状态） | 配准质量 `r_wm`、帧间运动、绝对漂移、离群切片、校正方法、ROI 体素数、ALPS 合理性、**配准稳健性 `regqc`**；处理是否完成单独报告 |
 | 等级 | 通过 / 提示 / 需注意 / 不合格，均附解释 |
-| 报告 | 单文件 HTML（可打印为 PDF）：数值、质控、判读、处理口径与引用；语言跟随界面 |
+| 报告 | 单文件 HTML（可打印为 PDF）：数值、**逐项质控检查与完整解释、当前质控阈值、自动生成的头动/配准-ROI 质控图**、判读、处理口径与引用；语言跟随界面。GUI 中处理完成后会自动写入每个被试的目录 |
 | 表格 | `alps_summary.csv`（每被试一行）、每个被试的 `alps_result.json`、`qc_report.txt` |
 | 可复现信息 | 每个 `alps_result.json` 记录实际处理口径：`bet_f`、`reg_cost`、`template`、`unring`、`denoise`、eddy 方法、TOPUP 状态与配置，以及全部质控指标 |
 
@@ -174,7 +174,8 @@ alpsbox report /path/to/results
   `template`、eddy `method`，以及 TOPUP 状态 `topup` 与配置 `topup_config`。
 - `<被试>/alps_result.json`——单个被试的上述数值 + 处理口径；队列重跑时直接复用。
 - `<被试>/qc_report.txt`——人类可读的逐被试质控摘要。
-- `<被试>/<被试>_report.html`——单文件 HTML 报告。
+- `<被试>/report.html`——单文件 HTML 报告。GUI 中每个被试处理完成后会自动
+  生成，不需要再点“生成报告”。
 
 想先看报告长什么样，可以直接打开用示例队列（无真实被试）生成的样例：
 [docs/example_report.html](docs/example_report.html)。

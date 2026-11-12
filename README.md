@@ -179,7 +179,7 @@ See [docs/FAQ.md](docs/FAQ.md) for common errors and
 | ALPS values | `alps_L`, `alps_R`, `alps_mean`, plus the eight diffusion-rate components used in the formula |
 | QC (8 categories + processing status) | registration quality `r_wm`, frame-wise motion, absolute drift, outlier slices, correction method, ROI voxel counts, ALPS plausibility, and **registration-robustness `regqc`**; whether processing completed is reported separately |
 | Grades | pass / info / caution / fail, each with an explanation |
-| Report | single-file HTML (printable to PDF) with values, QC, interpretation, processing definition and citations; language follows the interface |
+| Report | single-file HTML (printable to PDF) with values, **full QC checks + explanations, current QC thresholds, auto-generated motion/registration-ROI QC figures**, interpretation, processing definition and citations; language follows the interface. In the GUI it is written automatically to each subject's folder when processing finishes |
 | Tables | `alps_summary.csv` (one row per subject), per-subject `alps_result.json`, `qc_report.txt` |
 | Provenance | each `alps_result.json` records the processing definition actually used: `bet_f`, `reg_cost`, `template`, `unring`, `denoise`, eddy method, TOPUP status/config, plus all QC metrics |
 
@@ -198,7 +198,9 @@ See [docs/VALIDATION.md](docs/VALIDATION.md) for all experimental parameters.
 - `<subject>/alps_result.json` — the same values for one subject, together with
   the processing definition; re-running a finished cohort reuses it.
 - `<subject>/qc_report.txt` — human-readable per-subject QC summary.
-- `<subject>/<subject>_report.html` — the single-file HTML report.
+- `<subject>/report.html` — the single-file HTML report. In the GUI it is
+  written automatically when the subject finishes; no “Generate report” click is
+  needed.
 
 A synthetic example report (generated from the demo cohort, no real subject) is
 included for a quick look: [docs/example_report.html](docs/example_report.html).

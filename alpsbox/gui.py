@@ -1064,7 +1064,7 @@ class App(tk.Tk):
                     variant="light", height=32, padx=16).pack(side="right", padx=(7, 0))
         RoundButton(bar, t("res.export_json"), command=lambda: self._export("json"),
                     variant="light", height=32, padx=16).pack(side="right", padx=(7, 0))
-        # One-click HTML report
+        # One-click HTML report; scoped to the selected rows when there are any
         RoundButton(bar, t("res.report"), command=self._make_report,
                     variant="primary", height=32, padx=16).pack(
                         side="right", padx=(7, 0))
@@ -1073,12 +1073,35 @@ class App(tk.Tk):
         RoundButton(bar, t("res.clear"), command=self._clear_results,
                     variant="danger", height=32, padx=16).pack(side="right")
 
+        # ---- selection / deletion toolbar ----
+        selbar = tk.Frame(page, bg=P.BG)
+        selbar.pack(fill="x", pady=(0, 8))
+        self.lbl_sel = tk.Label(selbar, text=t("res.selected_n", 0), bg=P.BG,
+                                fg=P.TEXT_MUTED, font=self.F["small"])
+        self.lbl_sel.pack(side="left")
+        RoundButton(selbar, t("res.select_all"), command=self._select_all,
+                    variant="ghost", height=28, padx=10).pack(
+                        side="left", padx=(10, 0))
+        RoundButton(selbar, t("res.select_none"), command=self._clear_selection,
+                    variant="ghost", height=28, padx=10).pack(
+                        side="left", padx=(5, 0))
+        RoundButton(selbar, t("res.delete_selected"), command=self._delete_selected,
+                    variant="danger", height=28, padx=12).pack(
+                        side="left", padx=(10, 0))
+        tk.Label(selbar, text=t("res.report_scope_hint"), bg=P.BG,
+                 fg=P.TEXT_FAINT, font=self.F["small"]).pack(side="right")
+
         card = RoundedCard(page, padding=(2, 2))
         card.pack(fill="both", expand=True)
         host = card.body
 
-        cols = sess.RESULT_COLUMNS
+        # Two display-only columns wrap the data columns: a clickable check box
+        # (selection) and a per-row delete button.  The body values are rebuilt
+        # in _refresh_table; the data records keep only sess.RESULT_COLUMNS.
+        self._result_cols = ["_sel"] + list(sess.RESULT_COLUMNS) + ["_del"]
+        cols = self._result_cols
         heads = {
+            "_sel": t("col.select"), "_del": t("col.delete"),
             "subject": t("col.subject"), "status": t("col.status"),
             "qc": t("col.qc"),
             "alps_L": "ALPS_L", "alps_R": "ALPS_R", "alps_mean": "ALPS_mean",
@@ -1093,6 +1116,7 @@ class App(tk.Tk):
             "seconds": t("col.seconds"), "finished_at": t("col.finished"),
         }
         widths = {
+            "_sel": 38, "_del": 52,
             "subject": 124, "status": 190, "qc": 72, "alps_L": 78,
             "alps_R": 78, "alps_mean": 100, "n_L_proj": 58, "n_R_proj": 58,
             "n_L_asso": 58, "n_R_asso": 58, "r_wm": 58,
@@ -1101,7 +1125,8 @@ class App(tk.Tk):
             "n_outlier": 50, "n_vol": 58, "method": 100, "topup": 150,
             "seconds": 68, "finished_at": 116,
         }
-        self.tree = ttk.Treeview(host, columns=cols, show="headings", height=16)
+        self.tree = ttk.Treeview(host, columns=cols, show="headings",
+                                 height=14, selectmode="extended")
         for c in cols:
             self.tree.heading(c, text=heads.get(c, c))
             # stretch=False keeps each column at its configured width and lets
@@ -1109,6 +1134,11 @@ class App(tk.Tk):
             # window squeezes the leading columns down to a few pixels.
             self.tree.column(c, width=widths.get(c, 80), minwidth=widths.get(c, 80),
                              anchor="center", stretch=(c == "finished_at"))
+        self.tree.heading("_sel", text=t("col.select"), command=self._toggle_select_all)
+        self.tree.column("_sel", width=38, minwidth=34, anchor="center",
+                         stretch=False)
+        self.tree.column("_del", width=52, minwidth=46, anchor="center",
+                         stretch=False)
         self.tree.column("subject", anchor="w")
         self.tree.column("status", anchor="w")
         ysb = ttk.Scrollbar(host, orient="vertical", command=self.tree.yview)
@@ -1122,7 +1152,159 @@ class App(tk.Tk):
         self.tree.tag_configure("warn", foreground=P.WARN)
         self.tree.tag_configure("ok", foreground=P.OK)
         self.tree.tag_configure("odd", background=P.ROW_ALT)
+
+        self.tree.bind("<<TreeviewSelect>>", lambda e: self._sync_result_checks())
+        self.tree.bind("<Button-1>", self._on_result_click)
+        self.tree.bind("<Delete>", self._on_result_delete_key)
+        self.tree.bind("<Control-a>", self._on_result_select_all_key)
+        self.tree.bind("<Button-3>", self._show_result_menu)
+
+        if getattr(self, "_result_menu", None) is not None:
+            try:
+                self._result_menu.destroy()
+            except Exception:
+                pass
+        self._result_menu = tk.Menu(self, tearoff=0)
+        self._result_menu.add_command(label=t("res.select_all"),
+                                      command=self._select_all)
+        self._result_menu.add_command(label=t("res.select_none"),
+                                      command=self._clear_selection)
+        self._result_menu.add_separator()
+        self._result_menu.add_command(label=t("res.delete_selected"),
+                                      command=self._delete_selected)
         return page
+
+    # ---- results selection / deletion ---------------------------------
+    def _selected_iids(self):
+        return [iid for iid in self.tree.selection() if str(iid).isdigit()]
+
+    def _selected_records(self):
+        """Return the records for the selected rows, in table order."""
+        out = []
+        iids = sorted(
+            self.tree.selection(),
+            key=lambda s: int(s) if str(s).isdigit() else 10 ** 9)
+        for iid in iids:
+            try:
+                i = int(iid)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= i < len(self.records):
+                out.append(self.records[i])
+        return out
+
+    def _update_selection_label(self):
+        if not hasattr(self, "lbl_sel") or not hasattr(self, "tree"):
+            return
+        self.lbl_sel.configure(text=t("res.selected_n",
+                                      len(self.tree.selection())))
+
+    def _sync_result_checks(self):
+        """Mirror the Treeview selection into the clickable check-box column."""
+        if not hasattr(self, "tree"):
+            return
+        selected = set(self.tree.selection())
+        for iid in self.tree.get_children():
+            vals = list(self.tree.item(iid, "values"))
+            if not vals:
+                continue
+            vals[0] = "☑" if iid in selected else "☐"
+            self.tree.item(iid, values=vals)
+        self._update_selection_label()
+
+    def _select_all(self):
+        items = self.tree.get_children()
+        if items:
+            self.tree.selection_set(items)
+        self._sync_result_checks()
+
+    def _clear_selection(self):
+        items = list(self.tree.selection())
+        if items:
+            self.tree.selection_remove(*items)
+        self._sync_result_checks()
+
+    def _toggle_select_all(self):
+        items = self.tree.get_children()
+        if not items:
+            return
+        if len(self.tree.selection()) == len(items):
+            self._clear_selection()
+        else:
+            self._select_all()
+
+    def _on_result_click(self, event):
+        """Click the ☐/☑ cell to toggle one row; click the last cell to delete."""
+        row = self.tree.identify_row(event.y)
+        if not row:
+            return
+        col = self.tree.identify_column(event.x)
+        if col == "#1":
+            if row in self.tree.selection():
+                self.tree.selection_remove(row)
+            else:
+                self.tree.selection_add(row)
+            self._sync_result_checks()
+            return "break"
+        if col == "#%d" % len(self._result_cols):
+            self._delete_result_iids([row])
+            return "break"
+
+    def _on_result_delete_key(self, _event=None):
+        if self.tree.selection():
+            self._delete_selected()
+        return "break"
+
+    def _on_result_select_all_key(self, _event=None):
+        self._select_all()
+        return "break"
+
+    def _show_result_menu(self, event):
+        row = self.tree.identify_row(event.y)
+        if row and row not in self.tree.selection():
+            self.tree.selection_set(row)
+            self._sync_result_checks()
+        try:
+            self._result_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._result_menu.grab_release()
+
+    def _delete_selected(self):
+        iids = self._selected_iids()
+        if not iids:
+            messagebox.showinfo(t("res.delete_selected"), t("res.no_selection"))
+            return
+        self._delete_result_iids(iids)
+
+    def _delete_result_iids(self, iids):
+        """Remove rows from the current results view (never from disk)."""
+        idxs = []
+        for iid in iids:
+            try:
+                i = int(iid)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= i < len(self.records):
+                idxs.append(i)
+        idxs = sorted(set(idxs))
+        if not idxs:
+            return
+        names = [str(self.records[i].get("subject", "?")) for i in idxs[:4]]
+        shown = ("、".join(names) if i18n.get_lang() == "zh_CN"
+                 else ", ".join(names))
+        if len(idxs) > 4:
+            shown += "…"
+        if not messagebox.askyesno(
+                t("res.delete_selected"),
+                t("msg.confirm_delete", len(idxs), shown)):
+            return
+        drop = set(idxs)
+        self.records = [r for i, r in enumerate(self.records)
+                        if i not in drop]
+        sess.save_session(self.records)
+        self._refresh_table()
+        self._refresh_qc()
+        self._log(t("log.results_deleted", len(idxs)), "muted")
 
     # =================================================================
     # page: QC
@@ -2289,7 +2471,7 @@ class App(tk.Tk):
         for it in self.tree.get_children():
             self.tree.delete(it)
         for i, rec in enumerate(self.records):
-            vals = []
+            data_vals = []
             for c in sess.RESULT_COLUMNS:
                 v = rec.get(c, "")
                 if c == "status":
@@ -2302,8 +2484,8 @@ class App(tk.Tk):
                         v = t("ui.status_failed")
                 if c == "qc":
                     v = sess.qc_label(v)
-                vals.append("" if v is None else
-                            ("%.4f" % v if isinstance(v, float) else v))
+                data_vals.append("" if v is None else
+                                 ("%.4f" % v if isinstance(v, float) else v))
             tag = ""
             st = str(rec.get("status", ""))
             ok_status = (not st) or st.startswith("成功") or \
@@ -2327,7 +2509,10 @@ class App(tk.Tk):
                     tag = "fail"
                 elif i % 2:
                     tag = "odd"
-            self.tree.insert("", "end", values=vals, tags=(tag,) if tag else ())
+            vals = ["☐"] + data_vals + [t("res.delete_row")]
+            self.tree.insert("", "end", iid=str(i), values=vals,
+                             tags=(tag,) if tag else ())
+        self._sync_result_checks()
         self._update_session_label()
 
     def _clear_results(self):
@@ -2370,11 +2555,18 @@ class App(tk.Tk):
         self._log(t("log.import_results", msg), "ok")
 
     def _make_report(self):
-        """Build the HTML report in one click (with a plain-language verdict);
-        the browser can print it to PDF."""
+        """Build the HTML report in one click (with a plain-language verdict).
+
+        If rows are selected, the report covers exactly those subjects; with no
+        selection it keeps the old behaviour of covering the whole table.  The
+        browser can print the result to PDF.
+        """
         if not self.records:
             messagebox.showinfo(t("msg.no_data"), t("msg.table_empty"))
             return
+        records = self._selected_records()
+        if not records:
+            records = list(self.records)
         try:
             from . import report as _report
         except Exception as e:
@@ -2386,14 +2578,26 @@ class App(tk.Tk):
         if not p:
             return
         try:
-            _report.build_batch_html(self.records, p)
+            if len(records) == 1:
+                rec = records[0]
+                sdir = self._subject_out_dir(str(rec.get("subject", "")))
+                _report.build_html(rec, p, subject_dir=sdir)
+            else:
+                subject_dirs = {}
+                for rec in records:
+                    sid = str(rec.get("subject", ""))
+                    sdir = self._subject_out_dir(sid)
+                    if sdir:
+                        subject_dirs[sid] = sdir
+                _report.build_batch_html(records, p,
+                                         subject_dirs=subject_dirs)
         except Exception as e:
             messagebox.showerror(t("res.report"), str(e))
             return
         messagebox.showinfo(
             t("res.report"),
-            t("msg.report_done", p, len(self.records)))
-        self._log(t("msg.report_done", p, len(self.records)), "ok")
+            t("msg.report_done", p, len(records)))
+        self._log(t("msg.report_done", p, len(records)), "ok")
 
     def _export(self, kind):
         if not self.records:
@@ -2767,6 +2971,21 @@ class App(tk.Tk):
             args=(indir, outdir, opts, mode, topup), daemon=True)
         self.worker.start()
 
+    def _auto_html_report(self, out_dir, subject):
+        """Write the per-subject HTML report next to alps_result.json.
+
+        Called from the processing worker so each subject's report exists as
+        soon as the row appears in the results table.  A report failure must
+        never turn a successful ALPS run into a failed one; it is logged and
+        processing continues.
+        """
+        try:
+            from . import report as _report
+            path = _report.write_subject_report(out_dir)
+            self.q.put(("log", t("log.report_auto", os.path.abspath(path))))
+        except Exception as e:
+            self.q.put(("log", t("log.report_auto_fail", subject, e)))
+
     def _run_worker(self, indir, outdir, opts, mode, topup=None):
         old = sys.stdout
         sys.stdout = QueueWriter(self.q)
@@ -2783,6 +3002,12 @@ class App(tk.Tk):
                     if done:
                         self.q.put(("log",
                                     t("log.skipped_done", len(done))))
+                        # Backfill reports for subjects skipped because they
+                        # were already processed before this feature existed.
+                        for j in done:
+                            if not os.path.isfile(
+                                    os.path.join(j.out_dir, "report.html")):
+                                self._auto_html_report(j.out_dir, j.subject)
                         jobs = [j for j in jobs if j not in done]
                 if not jobs:
                     self.q.put(("log", t("log.all_done")))
@@ -2836,6 +3061,8 @@ class App(tk.Tk):
                                 % (i, total, j.subject, time.strftime("%H:%M:%S"))))
                     self.q.put(("log", "=" * 58))
                     r = pipe.run(j.subject, j.dwi, j.out_dir)
+                    if getattr(r, "ok", False):
+                        self._auto_html_report(j.out_dir, j.subject)
                     results.append(r)
                     self.q.put(("record", sess.result_to_record(r)))
                     el = time.time() - self.t_start
@@ -2909,6 +3136,8 @@ class App(tk.Tk):
                 self.q.put(("progress", (15.0, t("proc.starting", name))))
                 pipe = AlspPipeline(self.env, opts)
                 r = pipe.run(name, dwi, out_sub)
+                if getattr(r, "ok", False):
+                    self._auto_html_report(out_sub, name)
                 self.q.put(("record", sess.result_to_record(r)))
                 try:
                     os.makedirs(outdir, exist_ok=True)

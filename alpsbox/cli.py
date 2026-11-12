@@ -341,15 +341,18 @@ def cmd_batch(args) -> int:
         try:
             from . import report as _report
             recs = []
+            subject_dirs = {}
             for p in sorted(glob.glob(os.path.join(args.out, "*",
                                                    "alps_result.json"))):
                 try:
-                    recs.append(json.load(open(p, encoding="utf-8")))
+                    rec = json.load(open(p, encoding="utf-8"))
+                    recs.append(rec)
+                    subject_dirs[str(rec.get("subject", ""))] = os.path.dirname(p)
                 except Exception:
                     pass
             if recs:
                 hp = os.path.join(args.out, "report.html")
-                _report.build_batch_html(recs, hp)
+                _report.build_batch_html(recs, hp, subject_dirs=subject_dirs)
                 print(t("cli.batch.report", os.path.abspath(hp)))
         except Exception as e:
             print(t("cli.warn.report", e))
@@ -444,13 +447,16 @@ def cmd_report(args) -> int:
         print(t("cli.err.no_result_json", root))
         return 3
     recs = []
+    subject_dirs = {}
     for p in js:
         try:
-            recs.append(json.load(open(p, encoding="utf-8")))
+            rec = json.load(open(p, encoding="utf-8"))
+            recs.append(rec)
+            subject_dirs[str(rec.get("subject", ""))] = os.path.dirname(p)
         except Exception as e:
             print(t("cli.report.skip_row", p, e))
     out = args.out or os.path.join(root, "batch_report.html")
-    p = report.build_batch_html(recs, out)
+    p = report.build_batch_html(recs, out, subject_dirs=subject_dirs)
     print(t("cli.report.batch", os.path.abspath(p), len(recs)))
     return 0
 

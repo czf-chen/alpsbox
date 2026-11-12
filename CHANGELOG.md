@@ -6,6 +6,35 @@ repository's history.
 
 ## [Unreleased]
 
+### GUI results workflow
+
+- The GUI now writes each subject's HTML report automatically to
+  `<subject>/report.html` as soon as that subject finishes; no “Generate report”
+  click is required. A report failure is logged but does not turn a successful
+  ALPS run into a failed one. On a resumed batch, already-finished subjects that
+  lack a report get it backfilled automatically.
+- The results table gains row selection and deletion: a clickable check-box
+  column, Ctrl/Shift multi-select, select-all/clear-selection,
+  `Delete`/`Ctrl+A`, a per-row delete cell, and a “Delete selected” button.
+  Deletion only removes records from the current session view; output files on
+  disk and `~/.alpsbox/history.jsonl` are untouched.
+- “Generate report” now covers the selected rows; with no selection it keeps
+  the previous whole-table behaviour.
+
+### HTML report (results + QC package)
+
+- Single-subject HTML reports now include the full QC package, not just the
+  result table: every QC check with its value, grade, full explanation and
+  actionable advice; the current QC thresholds (with full names and what each
+  one measures); and auto-generated QC figures (head-motion time course plus a
+  registered-FA/ROI placement overview) when the subject output directory is
+  available. Batch reports also carry the current QC parameters, expand the
+  per-subject table with the main QC values/issues, and include expandable
+  per-subject QC details with the same figures when output directories are
+  available.
+- The report re-evaluates QC with the thresholds in effect at report generation
+  time and states this explicitly; it still does not compute group statistics.
+
 ### TOPUP (dual phase encoding)
 
 - TOPUP susceptibility-distortion correction is now available in the GUI as well

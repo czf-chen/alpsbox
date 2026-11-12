@@ -213,6 +213,130 @@ def motion_timecourse(subject_dir: str, subject: str = "",
 
 
 # ---------------------------------------------------------------------
+# Single subject: registration/ROI overview (for the HTML report)
+# ---------------------------------------------------------------------
+ROI_OVERVIEW_FILES = {
+    "L_proj": "L_SCR.nii.gz",
+    "R_proj": "R_SCR.nii.gz",
+    "L_asso": "L_SLF.nii.gz",
+    "R_asso": "R_SLF.nii.gz",
+}
+ROI_OVERVIEW_COLORS = {
+    "L_proj": (229, 72, 77),
+    "R_proj": (247, 104, 8),
+    "L_asso": (13, 116, 206),
+    "R_asso": (13, 157, 140),
+}
+
+
+def registration_overview(subject_dir: str, subject: str = "",
+                          figsize=(9.6, 3.2), dpi=120):
+    """Show registered FA in template space with the four ROI masks.
+
+    This is a visual QC figure: it lets the reader inspect whether the
+    FA->template registration and the ROI placement look plausible, instead of
+    relying only on r_wm.  It needs the pipeline output ``FA_in_mni.nii.gz``;
+    the ROI masks are the same bundled masks used for the ALPS calculation.
+
+    Returns a PIL.Image.  Caller is responsible for embedding/saving it.
+    """
+    if not _ready():
+        raise RuntimeError(t("qcx.plot.need_mpl"))
+    try:
+        import nibabel as nib
+    except Exception:                                # pragma: no cover
+        raise RuntimeError(t("qcx.roi.need_nibabel"))
+    from .roi import package_roi_dir
+
+    fa_path = os.path.join(subject_dir, "FA_in_mni.nii.gz")
+    if not os.path.isfile(fa_path):
+        raise RuntimeError(t("qcx.plot.no_fa"))
+    fa_img = nib.load(fa_path)
+    fa = np.squeeze(np.asanyarray(fa_img.dataobj)).astype(np.float32)
+    if fa.ndim != 3:
+        raise RuntimeError(t("qcx.plot.reg_shape"))
+
+    masks = {}
+    for name, fn in ROI_OVERVIEW_FILES.items():
+        p = os.path.join(package_roi_dir(), fn)
+        if not os.path.isfile(p):
+            raise RuntimeError(t("qcx.plot.roi_missing_s", fn))
+        masks[name] = np.asanyarray(nib.load(p).dataobj) > 0.5
+    if any(m.shape != fa.shape for m in masks.values()):
+        raise RuntimeError(t("qcx.plot.reg_shape"))
+
+    allm = np.zeros(fa.shape, bool)
+    for m in masks.values():
+        allm |= m
+    idx = np.argwhere(allm)
+    if idx.size == 0:
+        raise RuntimeError(t("qcx.plot.reg_shape"))
+
+    # A common square field of view (in mm) for the three views, so the ROI
+    # positions are directly comparable instead of filling each panel.
+    vox = np.sqrt((fa_img.affine[:3, :3] ** 2).sum(axis=0))
+    center = (idx.min(axis=0) + idx.max(axis=0)) / 2.0
+    span_mm = float(np.max((idx.max(axis=0) - idx.min(axis=0) + 1) * vox))
+    side_mm = span_mm + 28.0
+    half = np.maximum(4, (side_mm / 2.0 / np.maximum(vox, 1e-6)).astype(int))
+    lo = np.maximum(0, np.floor(center).astype(int) - half)
+    hi = np.minimum(np.array(fa.shape) - 1, np.floor(center).astype(int) + half)
+    z = int(np.argmax(allm.sum(axis=(0, 1))))
+    y = int(np.argmax(allm.sum(axis=(0, 2))))
+    x = int(np.argmax(allm.sum(axis=(1, 2))))
+
+    panels = [
+        (_lbl("qcx.plot.reg_axial"),
+         fa[lo[0]:hi[0] + 1, lo[1]:hi[1] + 1, z].T,
+         {k: m[lo[0]:hi[0] + 1, lo[1]:hi[1] + 1, z].T
+          for k, m in masks.items()}),
+        (_lbl("qcx.plot.reg_coronal"),
+         fa[lo[0]:hi[0] + 1, y, lo[2]:hi[2] + 1].T,
+         {k: m[lo[0]:hi[0] + 1, y, lo[2]:hi[2] + 1].T
+          for k, m in masks.items()}),
+        (_lbl("qcx.plot.reg_sagittal"),
+         fa[x, lo[1]:hi[1] + 1, lo[2]:hi[2] + 1].T,
+         {k: m[x, lo[1]:hi[1] + 1, lo[2]:hi[2] + 1].T
+          for k, m in masks.items()}),
+    ]
+
+    _use_lang_font()
+    fig, axes = plt.subplots(1, 3, figsize=figsize, dpi=dpi,
+                             constrained_layout=True)
+    vmax = 1.0
+    pos = fa[fa > 0]
+    if pos.size:
+        vmax = max(float(np.percentile(pos, 98)), 1e-6)
+
+    for ax, (title, img, roi_slices) in zip(axes, panels):
+        ax.imshow(img, cmap="gray", vmin=0, vmax=vmax, origin="lower",
+                  interpolation="nearest")
+        overlay = np.zeros(img.shape + (4,), np.float32)
+        for name, rr in roi_slices.items():
+            c = np.array(ROI_OVERVIEW_COLORS[name], np.float32) / 255.0
+            overlay[rr, :3] = c
+            overlay[rr, 3] = 0.45
+        ax.imshow(overlay, origin="lower", interpolation="nearest")
+        # ROI outlines improve visibility on the FA background
+        union = np.zeros(img.shape, bool)
+        for rr in roi_slices.values():
+            union |= rr
+        if union.any():
+            try:
+                ax.contour(union.astype(float), levels=[0.5],
+                           colors="#ffffff", linewidths=0.45)
+            except Exception:
+                pass
+        ax.set_title(title, fontsize=9.5, color=C_TEXT, pad=4)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    subj = subject or os.path.basename(os.path.normpath(subject_dir))
+    fig.suptitle(_lbl("qcx.plot.reg_title", subj), fontsize=10.5,
+                 color=C_TEXT, x=0.01, ha="left")
+    return _to_image(fig)
+
+
+# ---------------------------------------------------------------------
 # Cross-subject scatter
 # ---------------------------------------------------------------------
 # Keys are the field names in the record (a data contract, not translated);

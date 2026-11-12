@@ -400,6 +400,17 @@ STRINGS = {
     # ---------------- Results page ----------------
     "res.title": {"zh_CN": "结果表", "en": "Results"},
     "res.count": {"zh_CN": "共 %d 条", "en": "%d rows"},
+    "res.selected_n": {"zh_CN": "已选 %d 项", "en": "%d selected"},
+    "res.select_all": {"zh_CN": "全选", "en": "Select all"},
+    "res.select_none": {"zh_CN": "取消选择", "en": "Clear selection"},
+    "res.delete_selected": {"zh_CN": "删除选中", "en": "Delete selected"},
+    "res.delete_row": {"zh_CN": "删除", "en": "Delete"},
+    "res.no_selection": {
+        "zh_CN": "请先点选要删除的行（可用 Ctrl/Shift 多选）。",
+        "en": "Select one or more rows first (Ctrl/Shift for multi-select)."},
+    "res.report_scope_hint": {
+        "zh_CN": "生成报告优先使用选中行；未选中时使用全部",
+        "en": "Report uses selected rows; all rows if none selected"},
     "res.clear": {"zh_CN": "清空结果", "en": "Clear"},
     "res.import": {"zh_CN": "导入结果", "en": "Import"},
     "res.export_json": {"zh_CN": "导出 JSON", "en": "Export JSON"},
@@ -407,9 +418,18 @@ STRINGS = {
     "msg.report_done": {
         "zh_CN": "已生成 HTML 报告：%s\n（共 %d 个被试，浏览器打开后可打印为 PDF）",
         "en": "HTML report written: %s\n(%d subjects; open in a browser to print as PDF)"},
+    "msg.confirm_delete": {
+        "zh_CN": "从结果表删除 %d 条记录？\n\n%s\n\n"
+                 "只删除当前结果记录，不删除磁盘上的输出文件，"
+                 "也不改动 ~/.alpsbox/history.jsonl 历史记录。",
+        "en": "Delete %d record(s) from the results table?\n\n%s\n\n"
+              "This only removes the current records; output files on disk and "
+              "~/.alpsbox/history.jsonl are not touched."},
     "res.export_csv": {"zh_CN": "导出 CSV", "en": "Export CSV"},
 
     # ---------------- Results table column names ----------------
+    "col.select": {"zh_CN": "选", "en": "Sel"},
+    "col.delete": {"zh_CN": "删", "en": "Del"},
     "col.subject": {"zh_CN": "被试", "en": "Subject"},    "col.status": {"zh_CN": "状态", "en": "Status"},
     "col.qc": {"zh_CN": "质控", "en": "QC"},
     "col.r_wm": {"zh_CN": "配准 r_wm", "en": "r_wm"},
@@ -695,6 +715,14 @@ STRINGS = {
     "log.restored": {"zh_CN": "已恢复上次会话的 %d 条结果。",
                   "en": "Restored %d results from the last session."},
     "log.results_cleared": {"zh_CN": "结果表已清空。", "en": "Results table cleared."},
+    "log.results_deleted": {
+        "zh_CN": "已从结果表删除 %d 条记录（磁盘文件和历史记录未动）。",
+        "en": "Removed %d record(s) from the results table (disk files and history untouched)."},
+    "log.report_auto": {"zh_CN": "已自动生成 HTML 报告：%s",
+                        "en": "HTML report written automatically: %s"},
+    "log.report_auto_fail": {
+        "zh_CN": "[注意] 自动生成 HTML 报告失败（%s）：%s",
+        "en": "[warn] automatic HTML report failed for %s: %s"},
     "log.runnable": {"zh_CN": "[可跑] %-20s json=%s  相位方向=%s",
                   "en": "[ready] %-20s json=%s  phase dir=%s"},
     "log.save_title": {"zh_CN": "保存日志", "en": "Save log"},

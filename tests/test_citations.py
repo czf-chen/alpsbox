@@ -14,6 +14,7 @@ entry point with a language switcher, Chinese mirror, docs index, changelog,
 one-paragraph-per-reference citation formatting, and no group-analysis
 functionality in the shipped package.
 """
+import json
 import os
 import re
 import sys
@@ -212,7 +213,8 @@ _REC = {
     "alps_L": "1.284382", "alps_R": "1.565163", "alps_mean": "1.424773",
     "r_wm": "0.781061", "rms_rel_mean": "0.167252", "n_vol": 66,
     "n_outlier": 20, "bet_f": "0.500000",
-    "regqc_range_pct": "9.075536", "regqc_level": "提示",
+    "regqc_range_pct": "9.075536", "regqc_max_dev_pct": "2.500000",
+    "regqc_level": "提示",
 }
 _report_dir = tempfile.mkdtemp(prefix="alpsbox_rpt_")
 _en_html = report.build_html(_REC, os.path.join(_report_dir, "en.html"),
@@ -223,11 +225,48 @@ check("ALPS analysis report" in _en_text, "English report has English title")
 check(not CJK.search(_en_text), "English report has no CJK characters")
 check("no official standard implementation" in _en_text,
       "English report keeps the no-official-implementation note")
+check("4. QC results" in _en_text and "5. Current QC parameters" in _en_text
+      and "6. QC figures" in _en_text,
+      "English report includes QC checks, parameters and figures sections")
+check("White-matter registration r_wm" in _en_text,
+      "English report lists full QC parameter names")
+check("Registration robustness regqc" in _en_text,
+      "English report includes the regqc check when available")
 _zh_html = report.build_html(_REC, os.path.join(_report_dir, "zh.html"),
                              lang="zh_CN")
 _zh_text = open(_zh_html, encoding="utf-8").read()
 check('<html lang="zh-CN">' in _zh_text and "ALPS 分析报告" in _zh_text,
       "Chinese report keeps its zh-CN title")
+check("五、当前质控参数" in _zh_text and "四、质控结果" in _zh_text,
+      "Chinese report includes QC checks and parameters")
+
+# A subject output directory with eddy motion files must produce an embedded
+# motion figure, without needing FSL or real NIfTI data.
+_motion_dir = tempfile.mkdtemp(prefix="alpsbox_motion_")
+with open(os.path.join(_motion_dir, "eddy_out.eddy_movement_rms"), "w") as fh:
+    for i in range(6):
+        fh.write("%.4f %.4f\n" % (0.2 + 0.1 * i, 0.05 + 0.01 * i))
+_fig_html = report.build_html(
+    _REC, os.path.join(_report_dir, "zh_fig.html"),
+    lang="zh_CN", subject_dir=_motion_dir)
+_fig_text = open(_fig_html, encoding="utf-8").read()
+check("data:image/png;base64" in _fig_text,
+      "single-subject report embeds the generated QC motion figure")
+check("头动时间曲线" in _fig_text,
+      "QC figure has its caption and explanation")
+
+# The GUI now writes each subject's report next to alps_result.json
+# automatically; keep that helper pinned to the documented file name.
+_auto_dir = tempfile.mkdtemp(prefix="alpsbox_auto_report_")
+with open(os.path.join(_auto_dir, "alps_result.json"), "w",
+          encoding="utf-8") as _fh:
+    json.dump(_REC, _fh)
+_auto_html = report.write_subject_report(_auto_dir)
+check(os.path.basename(_auto_html) == "report.html"
+      and os.path.isfile(_auto_html),
+      "automatic per-subject report is written as <subject>/report.html")
+check(os.path.getsize(_auto_html) > 1000,
+      "automatic per-subject report is non-empty")
 _en_batch = report.build_batch_html(
     [_REC, {"subject": "bad", "ok": False}],
     os.path.join(_report_dir, "en_batch.html"), lang="en")

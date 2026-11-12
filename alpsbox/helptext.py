@@ -110,6 +110,11 @@ _HELP = {
         ),
         "results": (
             "结果表会自动保存到 ~/.alpsbox/session.json，下次打开还在，不需要手动存。\n\n"
+            "每个被试处理完成后，HTML 报告会自动写入该被试输出目录下的 "
+            "report.html，不需要再点“生成报告”。结果表支持点选、Ctrl/Shift "
+            "多选、全选和批量删除；“删除选中”只从当前结果表移除，不删除磁盘上的"
+            "输出文件，也不改动历史记录。“生成报告”优先使用选中的行，未选中时"
+            "使用全部结果。\n\n"
             "另外 ~/.alpsbox/history.jsonl 是只追加的历史记录，清空结果不会动它，"
             "以后要追溯某次跑的数据可以从这里找。\n\n"
             "可以把以前导出的 CSV 或 JSON 用“导入结果”合并回来，"
@@ -327,6 +332,12 @@ _HELP = {
         "results": (
             "The results table is saved automatically to ~/.alpsbox/session.json and "
             "restored on the next start; no manual save needed.\n\n"
+            "After each subject finishes, its HTML report is written automatically to "
+            "report.html in that subject's output folder, so no extra click is needed. "
+            "Rows can be selected one by one, with Ctrl/Shift, or all at once; "
+            "“Delete selected” removes rows only from the current table — output files "
+            "and the history journal are untouched. “Report” covers the selected rows, "
+            "or the whole table when nothing is selected.\n\n"
             "~/.alpsbox/history.jsonl is an append-only journal that clearing the "
             "table does not touch, useful for tracing earlier runs.\n\n"
             "Previously exported CSV or JSON can be merged back with “Import”; "

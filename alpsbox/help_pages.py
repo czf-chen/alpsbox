@@ -28,8 +28,11 @@ _ZH = {
 
 界面的结果页会自动保存，关掉再打开还在，不用手动存。
 实时日志在日志页，可以另存成 txt。
-磁盘上的位置是“输出目录/被试名/”，里面有 alps_result.json 和各类中间文件。
+磁盘上的位置是“输出目录/被试名/”，里面有 alps_result.json、report.html 和各类中间文件。
+GUI 处理完成后会自动写 report.html，不需要再点“生成报告”。
 整批跑完还会在输出目录根部生成 alps_summary.csv 和 qc_report.txt。
+结果表支持点选、Ctrl/Shift 多选、全选和批量删除；“删除选中”只移除当前结果记录，
+磁盘文件和历史记录都保留。
 
 每个被试要多久
 
@@ -342,9 +345,12 @@ Where the results are
 
 The results page saves automatically and survives a restart; no manual save needed.
 The live log is on the Log page and can be exported as text.
-On disk look in <output folder>/<subject>/ for alps_result.json and the
-intermediates. A finished batch also writes alps_summary.csv and qc_report.txt at
-the output root.
+On disk look in <output folder>/<subject>/ for alps_result.json, report.html and the
+intermediates. The GUI writes report.html automatically when processing finishes;
+no separate “Generate report” click is needed.
+A finished batch also writes alps_summary.csv and qc_report.txt at the output root.
+Rows can be selected one by one, with Ctrl/Shift, or all at once; “Delete selected”
+removes only the current table rows and leaves disk files and history untouched.
 
 How long each subject takes
 

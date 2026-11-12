@@ -379,6 +379,24 @@ STRINGS = {
     "qcx.plot.mean_max": {"zh_CN": "均值 %.3f    最大 %.3f",
                           "en": "mean %.3f    max %.3f"},
 
+    # ---- plotting.py: registration/ROI overview for the HTML report ----
+    "qcx.plot.reg_title": {
+        "zh_CN": "%s：配准后 FA（模板空间）与四个 ROI",
+        "en": "%s: FA in template space with the four ROIs"},
+    "qcx.plot.reg_axial": {"zh_CN": "轴位", "en": "Axial"},
+    "qcx.plot.reg_coronal": {"zh_CN": "冠状位", "en": "Coronal"},
+    "qcx.plot.reg_sagittal": {"zh_CN": "矢状位", "en": "Sagittal"},
+    "qcx.plot.reg_fa": {"zh_CN": "灰阶：FA_in_mni",
+                        "en": "Grey: FA_in_mni"},
+    "qcx.plot.reg_roi": {"zh_CN": "彩色：2.5 mm ROI（各 81 体素）",
+                         "en": "Colours: 2.5 mm ROIs (81 voxels each)"},
+    "qcx.plot.no_fa": {"zh_CN": "没有找到 FA_in_mni.nii.gz",
+                       "en": "FA_in_mni.nii.gz was not found"},
+    "qcx.plot.reg_shape": {"zh_CN": "FA 与 ROI 掩膜尺寸不一致",
+                           "en": "FA and ROI mask shapes differ"},
+    "qcx.plot.roi_missing_s": {"zh_CN": "ROI 文件缺失: %s",
+                               "en": "ROI file missing: %s"},
+
     # ---- plotting.py: cross-subject scatter ----
     "qcx.plot.scatter_title": {"zh_CN": "跨被试质控散点图",
                                "en": "QC scatter across subjects"},

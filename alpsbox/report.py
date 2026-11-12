@@ -29,13 +29,17 @@ from __future__ import annotations
 import base64
 import contextlib
 import datetime
+import html as _html
 import io
 import json
 import math
 import os
+import shutil
+import tempfile
 
 from . import citations as _C
 from . import i18n
+from . import qc as _qc
 from . import text_report  # noqa: F401  registers the rpt.* strings
 from .i18n import t
 
@@ -276,8 +280,9 @@ h1{font-size:22px;margin:0 0 4px;color:#1a56db}
 h2{font-size:15px;margin:22px 0 8px;padding-bottom:5px;
    border-bottom:1px solid #e3e7ee;color:#333}
 .sub{color:#777;font-size:12px;margin-bottom:18px}
-table{border-collapse:collapse;font-size:12.5px;margin:6px 0}
-th,td{border:1px solid #e3e7ee;padding:5px 10px;text-align:left}
+table{border-collapse:collapse;font-size:12.5px;margin:6px 0;width:100%}
+th,td{border:1px solid #e3e7ee;padding:5px 10px;text-align:left;
+      vertical-align:top}
 th{background:#f6f8fb;font-weight:600}
 .val{font-family:Consolas,monospace}
 .badge{display:inline-block;padding:3px 10px;border-radius:11px;
@@ -293,6 +298,14 @@ pre{background:#f6f8fb;border:1px solid #e3e7ee;padding:10px 12px;
 ol.refs{margin:6px 0 4px 18px;padding:0;font-size:12px;line-height:1.65}
 ol.refs li{margin:0 0 9px 0;padding-left:4px}
 img{max-width:100%;border:1px solid #e3e7ee;border-radius:5px;margin-top:6px}
+figure{margin:14px 0 18px}
+figcaption{font-size:12px;font-weight:600;color:#333;margin-bottom:4px}
+details{border:1px solid #e3e7ee;border-radius:6px;padding:8px 12px;
+        margin:8px 0}
+summary{cursor:pointer;color:#1a56db}
+.batch-detail{margin:6px 0}
+.qc-detail{color:#555;font-size:12px}
+.advice{color:#8a5300}
 """
 
 
@@ -308,22 +321,214 @@ def _img_tag(path, max_w=None):
         return ""
 
 
+def _esc(value) -> str:
+    """HTML-escape a data value (QC text can contain arbitrary subject names)."""
+    return _html.escape("" if value is None else str(value))
+
+
+def _level_badge(level: str) -> str:
+    """Coloured badge for an ok / info / warn / fail QC level."""
+    label = _qc.LEVEL_LABEL.get(level, level)
+    return '<span class="badge %s">%s</span>' % (
+        _esc(level), _esc(label))
+
+
+def _normalise_rec(rec: dict) -> dict:
+    """Make result JSON / imported CSV fields usable by the QC module.
+
+    ``alps_result.json`` stores ROI counts as ``n_roi_L_proj`` etc., while QC
+    checks (and the GUI session records) use ``n_L_proj``.  Older/imported
+    records can also lack a ``status`` field; qc.evaluate infers success from
+    the ALPS values in that case.
+    """
+    out = dict(rec)
+    for roi in ("L_proj", "R_proj", "L_asso", "R_asso"):
+        src = "n_roi_" + roi
+        dst = "n_" + roi
+        if src in out and (dst not in out or out.get(dst) in (None, "")):
+            out[dst] = out[src]
+    # Shell summary tables carry one aggregate n_roi value; expand it when the
+    # four per-ROI counts are absent.
+    if "n_roi" in out and not any("n_" + r in out for r in
+                                  ("L_proj", "R_proj", "L_asso", "R_asso")):
+        v = out.get("n_roi")
+        try:
+            n = int(float(v))
+        except (TypeError, ValueError):
+            n = 0
+        if n > 0:
+            for r in ("L_proj", "R_proj", "L_asso", "R_asso"):
+                out["n_" + r] = n
+    return out
+
+
+def _regqc_check_row(rec: dict):
+    """Extra QC-table row for --regqc, which is not part of qc.evaluate()."""
+    rq = _num(rec.get("regqc_range_pct"))
+    if rq is None:
+        return None
+    md = _num(rec.get("regqc_max_dev_pct"))
+    lvl = _level_of(rec.get("regqc_level", "")) or "info"
+    value = t("rpt.qc.regqc_value", rq, md if md is not None else float("nan"))
+    return (t("rpt.qc.regqc_check"), value, lvl,
+            t("rpt.qc.regqc_detail"))
+
+
+def _qc_checks_table(rep, extra=()) -> str:
+    """Full QC check table: check name, value, grade, complete explanation."""
+    h = ('<table><tr><th style="width:17%%">%s</th>'
+         '<th style="width:14%%">%s</th><th style="width:9%%">%s</th>'
+         '<th>%s</th></tr>'
+         % (t("rpt.qc.th_check"), t("rpt.qc.th_value"),
+            t("rpt.qc.th_level"), t("rpt.qc.th_detail")))
+    for c in rep.checks:
+        detail = _esc(c.detail)
+        if c.advice and c.level in ("warn", "fail"):
+            detail += ('<br><span class="advice"><b>%s</b>%s</span>'
+                       % (t("rpt.qc.advice"), _esc(c.advice)))
+        if not detail:
+            detail = "—"
+        h += ("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+              % (_esc(c.label), _esc(c.value), _level_badge(c.level), detail))
+    for label, value, level, detail in extra:
+        h += ("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+              % (_esc(label), _esc(value), _level_badge(level),
+                 _esc(detail)))
+    return h + "</table>"
+
+
+def _threshold_rows(th) -> list:
+    """(parameter, current value, full explanation) rows for the QC table."""
+    try:
+        from . import regqc as _regqc
+        rq_bands = "<%.0f%% / %.0f–%.0f%% / >%.0f%%" % (
+            _regqc.RANGE_INFO, _regqc.RANGE_INFO, _regqc.RANGE_WARN,
+            _regqc.RANGE_WARN)
+        rq_pert = "±%.1f° / %.1f mm" % (_regqc.PERTURB_DEG,
+                                        _regqc.PERTURB_MM)
+    except Exception:
+        rq_bands = "<6% / 6–10% / >10%"
+        rq_pert = "±0.5° / 0.5 mm"
+    on = t("rpt.on")
+    off = t("rpt.off")
+    return [
+        (t("rpt.qp.roi_voxels"),
+         "%d (%s: %s)" % (th.roi_voxels, t("rpt.qp.strict"),
+                          on if th.strict_roi_voxels else off),
+         t("rpt.qp.roi_voxels_exp")),
+        (t("rpt.qp.rwm"),
+         "%.2f / %.2f" % (th.r_wm_ok, th.r_wm_fail),
+         t("rpt.qp.rwm_exp")),
+        (t("rpt.qp.rel"),
+         "%.2f / %.2f mm" % (th.rms_rel_warn, th.rms_rel_fail),
+         t("rpt.qp.rel_exp")),
+        (t("rpt.qp.relmax"),
+         "%.2f / %.2f mm" % (th.rms_rel_max_warn, th.rms_rel_max_fail),
+         t("rpt.qp.relmax_exp")),
+        (t("rpt.qp.abs"),
+         "%.2f / %.2f mm" % (th.rms_abs_warn, th.rms_abs_fail),
+         t("rpt.qp.abs_exp")),
+        (t("rpt.qp.absmax"),
+         "%.2f / %.2f mm" % (th.rms_abs_max_warn, th.rms_abs_max_fail),
+         t("rpt.qp.absmax_exp")),
+        (t("rpt.qp.outlier"),
+         "%.2f / %.2f /vol" % (th.outlier_warn, th.outlier_fail),
+         t("rpt.qp.outlier_exp")),
+        (t("rpt.qp.alps"),
+         "%.2f – %.2f" % (th.alps_min, th.alps_max),
+         t("rpt.qp.alps_exp")),
+        (t("rpt.qp.flags"),
+         "strict ROI: %s; eddy_correct: %s" % (
+             on if th.strict_roi_voxels else off,
+             on if th.flag_eddy_correct else off),
+         t("rpt.qp.flags_exp")),
+        (t("rpt.qp.regqc"),
+         "%s（%s）" % (rq_bands, rq_pert),
+         t("rpt.qp.regqc_exp")),
+    ]
+
+
+def _threshold_table(th) -> str:
+    h = ('<table><tr><th style="width:26%%">%s</th>'
+         '<th style="width:18%%">%s</th><th>%s</th></tr>'
+         % (t("rpt.qp.th_param"), t("rpt.qp.th_value"),
+            t("rpt.qp.th_explain")))
+    for name, value, explain in _threshold_rows(th):
+        h += "<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+            _esc(name), _esc(value), _esc(explain))
+    return h + "</table>"
+
+
+def _auto_qc_images(rec, subject_dir, th):
+    """Render the per-subject QC figures, if the output directory is known.
+
+    Returns (caption -> png path, temp directory, error list).  Every figure is
+    optional: a missing FA/motion file must never break the report.
+    """
+    tmp = tempfile.mkdtemp(prefix="alpsbox_report_")
+    images = {}
+    errors = []
+    if not subject_dir:
+        return images, tmp, errors
+    subj = str(rec.get("subject") or "")
+    try:
+        from .plotting import motion_timecourse
+        img = motion_timecourse(subject_dir, subj, thresholds=th)
+        p = os.path.join(tmp, "motion.png")
+        img.save(p)
+        images[t("rpt.caption.motion")] = p
+    except Exception as e:
+        errors.append("motion: %s" % e)
+    try:
+        from .plotting import registration_overview
+        img = registration_overview(subject_dir, subj)
+        p = os.path.join(tmp, "registration.png")
+        img.save(p)
+        images[t("rpt.caption.reg")] = p
+    except Exception as e:
+        errors.append("registration: %s" % e)
+    return images, tmp, errors
+
+
+def _figure_block(caption, path, note=None) -> str:
+    tag = _img_tag(path, max_w=900)
+    if not tag:
+        return ""
+    cap = _esc(caption)
+    note_html = ('<div class="qc-detail">%s</div>' % _esc(note)) if note else ""
+    return ('<figure><figcaption>%s</figcaption>%s%s</figure>'
+            % (cap, tag, note_html))
+
+
 def build_html(rec: dict, out_path: str, images: dict | None = None,
-               title: str | None = None, lang: str | None = None) -> str:
+               title: str | None = None, lang: str | None = None,
+               subject_dir: str | None = None) -> str:
     """Generate the single-file HTML report (printable to PDF from a browser).
 
     title=None uses the default title of the current language; lang=None follows
-    i18n.get_lang().
+    i18n.get_lang().  subject_dir is the processed subject output directory; if
+    given, QC figures (motion time course, registered FA with ROIs) are rendered
+    and embedded automatically.  If it is None, only the tables are generated.
     """
     with _lang_ctx(lang):
-        return _build_html(rec, out_path, images, title)
+        return _build_html(rec, out_path, images, title, subject_dir)
 
 
 def _build_html(rec: dict, out_path: str, images: dict | None = None,
-                title: str | None = None) -> str:
-    images = images or {}
+                title: str | None = None,
+                subject_dir: str | None = None) -> str:
+    rec = _normalise_rec(rec)
     title = title or t("rpt.title.single")
-    it = interpret(rec)
+    th = _qc.load_thresholds()
+    rep = _qc.evaluate(rec, th)
+    rec_eval = dict(rec)
+    rec_eval["qc"] = rep.level
+    it = interpret(rec_eval)
+
+    auto_images, tmpdir, fig_errors = _auto_qc_images(rec, subject_dir, th)
+    merged_images = dict(auto_images)
+    merged_images.update(images or {})
+
     v = _num(rec.get("alps_mean"))
     L = _num(rec.get("alps_L"))
     R = _num(rec.get("alps_R"))
@@ -354,34 +559,6 @@ def _build_html(rec: dict, out_path: str, images: dict | None = None,
         (t("rpt.row.dzz_R_asso"), f(rec.get("dzz_R_asso"), 6)),
     ]
 
-    qc_rows = [
-        (t("rpt.qc.rwm"), f(rec.get("r_wm"), 3)),
-        (t("rpt.qc.rel_mean"), f(rec.get("rms_rel_mean"), 3)),
-        (t("rpt.qc.rel_max"), f(rec.get("rms_rel_max"), 3)),
-        (t("rpt.qc.abs_mean"), f(rec.get("rms_abs_mean"), 3)),
-        (t("rpt.qc.abs_max"), f(rec.get("rms_abs_max"), 3)),
-        (t("rpt.qc.outlier_n"), str(rec.get("n_outlier", "—"))),
-        (t("rpt.qc.verdict"), _disp(rec.get("qc", "—"))),
-    ]
-
-    # Registration robustness (--regqc)
-    if _num(rec.get("regqc_range_pct")) is not None:
-        qc_rows.extend([
-            (t("rpt.qc.regqc_range"), f(rec.get("regqc_range_pct"), 2)),
-            (t("rpt.qc.regqc_maxdev"), f(rec.get("regqc_max_dev_pct"), 2)),
-            (t("rpt.qc.regqc_level"),
-             _disp(str(rec.get("regqc_level", "—") or "—"))),
-        ])
-
-    # T1-assisted registration (only with --t1; an experimental paired
-    # comparison that does not affect the main result)
-    if str(rec.get("t1_assisted", "") or "") == "ok":
-        qc_rows.extend([
-            (t("rpt.qc.t1_alps"), f(rec.get("alps_t1"), 3)),
-            (t("rpt.qc.t1_rwm"), f(rec.get("r_wm_t1"), 3)),
-            (t("rpt.qc.t1_regqc_range"), f(rec.get("regqc_t1_range_pct"), 2)),
-        ])
-
     def table(rows, w1="38%"):
         h = ('<table><tr><th style="width:%s">%s</th><th>%s</th></tr>'
              % (w1, t("rpt.table.item"), t("rpt.table.value")))
@@ -389,13 +566,11 @@ def _build_html(rec: dict, out_path: str, images: dict | None = None,
             h += "<tr><td>%s</td><td>%s</td></tr>" % (k, val)
         return h + "</table>"
 
-    level = it["level"]
     body = []
     body.append("<h1>%s</h1>" % title)
     body.append('<div class="sub">%s</div>' % t("rpt.sub.generated", now))
-    body.append('<div class="verdict"><span class="badge %s">%s</span> '
-                '&nbsp;%s</div>'
-                % (level, _disp(rec.get("qc", "—")), it["verdict"]))
+    body.append('<div class="verdict">%s &nbsp;%s</div>'
+                % (_level_badge(rep.level), _esc(it["verdict"])))
 
     body.append("<h2>%s</h2>" % t("rpt.h.results"))
     body.append(table(rows_main))
@@ -409,17 +584,47 @@ def _build_html(rec: dict, out_path: str, images: dict | None = None,
                         % (("—" if b == "—" else "%.4f" % (float(b) * 1000))))
                        for a, b in diff_rows]))
 
+    # ---- QC results: every check with its full explanation and advice ----
     body.append("<h2>%s</h2>" % t("rpt.h.qc"))
-    body.append(table(qc_rows))
+    body.append('<div class="verdict">%s &nbsp;%s</div>'
+                % (_level_badge(rep.level), _esc(rep.summarize_line())))
+    extra_checks = []
+    rq_row = _regqc_check_row(rec)
+    if rq_row:
+        extra_checks.append(rq_row)
+    body.append(_qc_checks_table(rep, extra_checks))
+    if rep.issues:
+        body.append('<div class="note">%s</div>'
+                    % _esc(t("rpt.qc.issues",
+                             t("rpt.qc.issue_sep").join(rep.issues))))
+    else:
+        body.append('<div class="note">%s</div>' % t("rpt.qc.no_issues"))
+    body.append('<div class="note">%s</div>' % t("rpt.qc.note"))
 
-    if images:
-        body.append("<h2>%s</h2>" % t("rpt.h.images"))
-        for cap, p in images.items():
-            tag = _img_tag(p, max_w=760)
-            if tag:
-                ckey = _CAPTION_KEYS.get(cap)
-                body.append("<div style='margin:10px 0'><b>%s</b>%s</div>"
-                            % (t(ckey) if ckey else cap, tag))
+    # ---- Current QC thresholds and what each one means ----
+    body.append("<h2>%s</h2>" % t("rpt.h.qc_params"))
+    body.append(_threshold_table(th))
+    body.append('<div class="note">%s</div>' % t("rpt.qc.threshold_source"))
+
+    # ---- QC figures (auto-generated when the subject output dir is known) ---
+    body.append("<h2>%s</h2>" % t("rpt.h.qc_figs"))
+    if merged_images:
+        for cap, p in merged_images.items():
+            ckey = _CAPTION_KEYS.get(cap)
+            if ckey is None:
+                for k in ("rpt.caption.motion", "rpt.caption.reg",
+                          "rpt.caption.roi"):
+                    if cap == t(k):
+                        ckey = k
+                        break
+            caption = t(ckey) if ckey else cap
+            note_key = {("rpt.caption.motion"): "rpt.fig.motion_note",
+                        ("rpt.caption.reg"): "rpt.fig.reg_note"}.get(ckey)
+            block = _figure_block(caption, p, t(note_key) if note_key else None)
+            if block:
+                body.append(block)
+    else:
+        body.append('<div class="note">%s</div>' % t("rpt.fig.none"))
 
     # ---- Processing settings (read from the result record, tolerant of old
     # results; defaults are used when a field is missing) ----
@@ -468,68 +673,162 @@ def _build_html(rec: dict, out_path: str, images: dict | None = None,
             % (lang_attr, title, _CSS, "\n".join(body)))
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(html)
+    shutil.rmtree(tmpdir, ignore_errors=True)
     return out_path
 
 
 def build_from_result_json(json_path: str, out_html: str | None = None,
                            images: dict | None = None,
-                           lang: str | None = None) -> str:
+                           lang: str | None = None,
+                           subject_dir: str | None = None) -> str:
     """Build the report directly from alps_result.json (lang=None follows
-    i18n.get_lang())."""
+    i18n.get_lang()).  out_html defaults to report.html next to the JSON, and
+    subject_dir defaults to the directory holding the JSON, so CLI/GUI runs get
+    the QC figures automatically."""
     rec = json.load(open(json_path, encoding="utf-8"))
     if out_html is None:
-        out_html = os.path.join(os.path.dirname(json_path),
-                                "%s_report.html" % rec.get("subject", "alps"))
-    return build_html(rec, out_html, images=images, lang=lang)
+        out_html = os.path.join(os.path.dirname(json_path), "report.html")
+    if subject_dir is None:
+        subject_dir = os.path.dirname(os.path.abspath(json_path))
+    return build_html(rec, out_html, images=images, lang=lang,
+                      subject_dir=subject_dir)
+
+
+def write_subject_report(subject_dir: str, out_name: str = "report.html") -> str:
+    """Write the single-subject HTML report into its own output folder.
+
+    GUI runs call this automatically after a subject finishes, so the report
+    sits next to ``alps_result.json`` without any further click.  The file name
+    is deliberately generic: the folder already identifies the subject, and
+    this matches the CLI's ``report.html`` output.
+    """
+    json_path = os.path.join(subject_dir, "alps_result.json")
+    if not os.path.isfile(json_path):
+        raise FileNotFoundError(json_path)
+    out_path = os.path.join(subject_dir, out_name)
+    return build_from_result_json(json_path, out_path, subject_dir=subject_dir)
 
 
 def build_batch_html(results: list, out_path: str, title: str | None = None,
-                     lang: str | None = None) -> str:
-    """Summary HTML for several subjects analysed at once (counts and a
-    per-subject table only).
+                     lang: str | None = None,
+                     subject_dirs: dict | None = None) -> str:
+    """Summary HTML for several subjects analysed at once.
 
-    This tool only computes single-subject ALPS plus QC; group-level statistics
-    are a downstream task, so the report gives no mean/SD/range of ALPS.
+    The report gives per-subject values, QC checks, the current QC parameters
+    and, when ``subject_dirs`` maps subject -> processed output directory,
+    expandable per-subject QC details with motion/registration figures.  It
+    deliberately gives no group-level statistics; those are downstream.
     """
     with _lang_ctx(lang):
-        return _build_batch_html(results, out_path, title)
+        return _build_batch_html(results, out_path, title, subject_dirs)
 
 
 def _build_batch_html(results: list, out_path: str,
-                      title: str | None = None) -> str:
+                      title: str | None = None,
+                      subject_dirs: dict | None = None) -> str:
     title = title or t("rpt.title.batch")
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    th = _qc.load_thresholds()
+    subject_dirs = subject_dirs or {}
+    tmpdir = tempfile.mkdtemp(prefix="alpsbox_batch_report_")
     rows = []
     n_ok = 0
+    details = []
     for r in results:
+        r = _normalise_rec(r)
         if not r.get("ok"):
-            rows.append((r.get("subject", "?"), t("rpt.batch.failed"),
-                         "—", "—", "—", "—"))
+            rows.append((_esc(r.get("subject", "?")), t("rpt.batch.failed"),
+                         "—", "—", "—", "—", "—", "—", "—", "—"))
             continue
         n_ok += 1
-        it = interpret(r)
-        rows.append((r.get("subject", "?"), _disp(r.get("qc", "—")),
-                     "%.3f" % float(r["alps_L"]),
-                     "%.3f" % float(r["alps_R"]),
-                     "<b>%.3f</b>" % float(r["alps_mean"]),
-                     it["verdict"]))
+        rep = _qc.evaluate(r, th)
+        it = interpret({**r, "qc": rep.level})
+        rel = "—"
+        if _num(r.get("rms_rel_mean")) is not None or \
+                _num(r.get("rms_rel_max")) is not None:
+            rel = "%s / %s" % (
+                "%.2f" % _num(r.get("rms_rel_mean"))
+                if _num(r.get("rms_rel_mean")) is not None else "—",
+                "%.2f" % _num(r.get("rms_rel_max"))
+                if _num(r.get("rms_rel_max")) is not None else "—")
+        rows.append((
+            _esc(r.get("subject", "?")),
+            _level_badge(rep.level),
+            "%.3f" % float(r["alps_L"]),
+            "%.3f" % float(r["alps_R"]),
+            "<b>%.3f</b>" % float(r["alps_mean"]),
+            "%.3f" % _num(r.get("r_wm"))
+            if _num(r.get("r_wm")) is not None else "—",
+            rel,
+            _esc(r.get("n_outlier", "—")),
+            _esc(r.get("method", "—")),
+            _esc(rep.summarize_line()) + "<br><span class='qc-detail'>"
+            + _esc(it["verdict"]) + "</span>",
+        ))
+        sdir = subject_dirs.get(str(r.get("subject", "")))
+        if sdir:
+            parts = ['<details><summary><b>%s</b> &nbsp;%s'
+                     % (_esc(r.get("subject", "?")),
+                        _level_badge(rep.level))]
+            parts.append(" &nbsp;%s</summary>" % _esc(it["verdict"]))
+            rq_row = _regqc_check_row(r)
+            parts.append(_qc_checks_table(
+                rep, [rq_row] if rq_row else []))
+            try:
+                from .plotting import motion_timecourse
+                img = motion_timecourse(sdir, str(r.get("subject", "")),
+                                        thresholds=th)
+                p = os.path.join(tmpdir, "%s_motion.png"
+                                 % r.get("subject", "?"))
+                img.save(p)
+                parts.append(_figure_block(t("rpt.caption.motion"), p,
+                                           t("rpt.fig.motion_note")))
+            except Exception:
+                pass
+            try:
+                from .plotting import registration_overview
+                img = registration_overview(sdir,
+                                            str(r.get("subject", "")))
+                p = os.path.join(tmpdir, "%s_reg.png"
+                                 % r.get("subject", "?"))
+                img.save(p)
+                parts.append(_figure_block(t("rpt.caption.reg"), p,
+                                           t("rpt.fig.reg_note")))
+            except Exception:
+                pass
+            parts.append("</details>")
+            details.append("<div class='batch-detail'>%s</div>"
+                           % "".join(parts))
     tbl = ('<table><tr><th>%s</th><th>%s</th><th>ALPS_L</th>'
-           "<th>ALPS_R</th><th>ALPS_mean</th><th>%s</th></tr>"
+           "<th>ALPS_R</th><th>ALPS_mean</th><th>%s</th><th>%s</th>"
+           "<th>%s</th><th>%s</th><th>%s</th></tr>"
            % (t("rpt.batch.th_subject"), t("rpt.batch.th_qc"),
-              t("rpt.batch.th_conclusion")))
+              t("rpt.batch.th_rwm"), t("rpt.batch.th_rel"),
+              t("rpt.batch.th_outlier"), t("rpt.batch.th_method"),
+              t("rpt.batch.th_issues")))
     for row in rows:
         tbl += "<tr>" + "".join("<td>%s</td>" % c for c in row) + "</tr>"
     tbl += "</table>"
-    # Keep only the subject and success counts; group-level statistics should
-    # be done downstream on the exported CSV/JSON
     count = "<pre>%s</pre>" % t("rpt.batch.count", len(results), n_ok)
+    body = [
+        "<h1>%s</h1>" % _esc(title),
+        "<div class='sub'>ALPSbox · %s</div>" % _esc(now),
+        "<h2>%s</h2>%s" % (t("rpt.h.summary"), count),
+        "<h2>%s</h2>%s" % (t("rpt.h.per_subject"), tbl),
+        "<h2>%s</h2>%s" % (t("rpt.h.qc_params"), _threshold_table(th)),
+        "<div class='note'>%s</div>" % t("rpt.qc.threshold_source"),
+        "<div class='note'>%s</div>" % t("rpt.batch.qc_note"),
+    ]
+    if details:
+        body.append("<h2>%s</h2>" % t("rpt.h.qc_details"))
+        body.append("<div class='note'>%s</div>"
+                    % t("rpt.batch.details_hint"))
+        body.extend(details)
     lang_attr = "en" if i18n.get_lang() == "en" else "zh-CN"
     html = ('<!DOCTYPE html><html lang="%s"><head><meta charset="utf-8">'
-            "<title>%s</title><style>%s</style></head><body>"
-            "<h1>%s</h1><div class='sub'>ALPSbox · %s</div>"
-            "<h2>%s</h2>%s<h2>%s</h2>%s</body></html>"
-            % (lang_attr, title, _CSS, title, now, t("rpt.h.summary"), count,
-               t("rpt.h.per_subject"), tbl))
+            "<title>%s</title><style>%s</style></head><body>%s</body></html>"
+            % (lang_attr, _esc(title), _CSS, "\n".join(body)))
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(html)
+    shutil.rmtree(tmpdir, ignore_errors=True)
     return out_path
